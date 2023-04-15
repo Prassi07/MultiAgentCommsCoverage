@@ -1,0 +1,185 @@
+init_x: 0  # initial x-pos 
+init_y: 0  # initial y-pos
+init_z: 50  # initial z-pos
+init_psi: 0  # initial heading
+
+max_omega: 1.0  # drone max angular velocity
+max_zvel: 5  # drone max vertical velocity
+
+vehicle_l: 3  # vehicle list for visualization
+vehicle_num: $(arg vehicle_num)
+
+hvel: 10  # vehicle x-y velocity
+vvel: 2  # vehicle z-velocity
+
+# number of random targets & obstalces
+# -1 if providing custom list of targets
+n_rand_targets: 0
+n_rand_obst: 75
+
+del_t: .02  # timestep between sim updates
+
+waypt_threshold: 3.0
+
+min_formation_dist: 50
+max_formation_dist: 100
+
+K_p: 10  # PID angular proportionality constant
+K_p_z: 0.01  # PID z-axis proportionality constant
+
+
+# obstacles:
+#     - {id: 75, x: 90.1605239682371,  y: 210.2018097898134,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 74, x: 12.987462287649123,  y: -120.93787750780615,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 73, x: -52.96646238339562,  y: -34.63518916919733,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 72, x: -168.82305413337116,  y: 60.66152779401091,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 71, x: 90.43192152520692,  y: -205.63176521298914,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 70, x: 148.32387454339818,  y: 195.64891020062947,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 69, x: 161.05185013367657,  y: -105.31051042272574,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 68, x: 148.99744909195766,  y: -38.76527287949551,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 67, x: -100.78067256308789,  y: 156.9158230323983,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 66, x: 36.538949653531404,  y: -10.099011101005772,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 65, x: 65.54711147054246,  y: 133.48017996125606,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 64, x: 124.65236716760546,  y: -52.70882245891991,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 63, x: 8.046864888654682,  y: 127.06902499512171,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 62, x: 95.30488415854865,  y: -94.02655672302073,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 61, x: -49.906617505439556,  y: 203.89110949011308,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 60, x: -25.882993965567493,  y: -193.72563848959217,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 59, x: 181.61480536930713,  y: 65.13603447370133,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 58, x: 144.43664752941226,  y: 131.0123841748454,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 57, x: -1.394564923075393,  y: -87.03846183667687,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 56, x: -144.90289026063215,  y: -104.55504309189244,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 55, x: -16.779161409596355,  y: 63.90123063989148,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 54, x: -111.07987881398907,  y: -4.173924101630206,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 53, x: 65.64192595014441,  y: -182.659101933434,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 52, x: 139.0856933862823,  y: -18.338367655775727,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 51, x: 81.72798622025971,  y: -8.865382333952738,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 50, x: -128.02763989842165,  y: 24.015318743272758,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 49, x: -107.55857784006697,  y: 35.10909679348126,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 48, x: -202.00638291125935,  y: 25.478249665531337,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 47, x: -92.42351445257366,  y: -205.65730221086952,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 46, x: 148.45868671659758,  y: -200.54750262752486,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 45, x: -117.44961396024742,  y: -21.53099816225759,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 44, x: 133.00307744819412,  y: 111.64328275859958,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 43, x: 65.7977333114045,  y: 216.65209446895233,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 42, x: 191.09776885202882,  y: 10.482731738705894,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 41, x: 21.51021680247277,  y: 19.734444347111094,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 40, x: -191.23990972056146,  y: 197.38958642757456,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 39, x: 181.56825266754106,  y: 45.969286383317524,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 38, x: 59.90369514678849,  y: 147.8294311438455,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 37, x: -92.59978677933071,  y: 158.1921346688069,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 36, x: -32.355901234903826,  y: -111.95642931825353,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 35, x: 151.6584165780776,  y: -215.17915940723833,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 34, x: 213.8213350749262,  y: 141.31954030246516,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 33, x: 190.08339477765423,  y: 86.73023547988026,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 32, x: -171.79282225841115,  y: -10.641784043733765,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 31, x: -70.45649523763817,  y: 114.25957226496837,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 30, x: 174.74948488427248,  y: -29.675285652371628,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 29, x: 28.339904794954975,  y: 77.06374610692444,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 28, x: 87.91976994043137,  y: -1.027973287377506,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 27, x: -30.37025350411477,  y: -218.46944850156288,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 26, x: -63.96602168546687,  y: -122.89685966185172,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 25, x: 219.026732368774,  y: -43.91731617631581,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 24, x: 89.34362163851387,  y: 71.2534789709224,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 23, x: -62.59562908456334,  y: 218.47774994139428,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 22, x: 129.22312156198734,  y: -148.56562360433182,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 21, x: 57.30263464355312,  y: -195.0201197700177,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 20, x: 33.38003276486597,  y: 3.479049091056652,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 19, x: 186.96111520632428,  y: -25.320491783127096,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 18, x: -18.020558697288266,  y: 188.6633399561195,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 17, x: -202.1751169419307,  y: -202.54112011853243,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 16, x: -147.45603901364677,  y: 47.08700688864934,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 15, x: 70.96097905637862,  y: -4.5684232956464825,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 14, x: -132.8405597918435,  y: 169.10763124610315,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 13, x: 101.56309193576175,  y: 3.386460970749198,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 12, x: 25.60186194075493,  y: -99.1500532890843,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 11, x: -115.36587952693166,  y: 15.40081030904642,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 10, x: 65.33448597702841,  y: 13.375909875930205,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 9, x: 173.87389655314195,  y: -61.64246984557673,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 8, x: -0.10013302582905226,  y: -117.93182970356814,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 7, x: -192.46793589254912,  y: 188.50444382226806,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 6, x: -144.93697809426266,  y: -65.66192006348447,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 5, x: 133.5579324858315,  y: -69.86534660354292,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 4, x: -202.3338241923271,  y: -159.8265097679248,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 3, x: -159.82470968218817,  y: 179.26826925752835,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 2, x: -78.43378782836604,  y: -0.8834841470283266,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 1, x: -48.4092253184246,  y: -19.829142792684507,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+
+
+# obstacles:
+#     - {id: 75, x: -129.50090328700236,  y: -20.60873243292363,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 74, x: 8.4981422884768,  y: -190.66222926866072,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 73, x: -30.99475152780525,  y: 174.59624373840057,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 72, x: -112.32131288466711,  y: 82.99937336681677,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 71, x: -140.9191250403428,  y: -21.248220199117668,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 70, x: -20.576113939583223,  y: -60.01304615304329,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 69, x: -42.15264578370184,  y: -190.51222555878272,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 68, x: 23.19565777374072,  y: -1.5052035567266557,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 67, x: 121.28534965188516,  y: 214.08291841037766,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 66, x: 40.919827118363116,  y: 180.0281114840928,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 65, x: 215.68738753001298,  y: -60.978120178357244,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 64, x: -52.52602625950769,  y: -89.9313183398192,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 63, x: -42.36848163715101,  y: 80.74541927806581,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 62, x: 45.30563812029487,  y: -121.5825416343406,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 61, x: -22.741824288876472,  y: 66.82046984921777,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 60, x: 112.16784081693896,  y: -197.3614144622345,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 59, x: 185.38852924225301,  y: 198.57353354415648,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 58, x: -195.70196908206415,  y: 170.60816207565614,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 57, x: 132.60971435184285,  y: 203.46086096174236,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 56, x: -155.0212810489813,  y: -154.07294085325424,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 55, x: 67.75217300256998,  y: 6.775823215626701,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 54, x: 105.10855488052778,  y: -151.9757663975749,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 53, x: -105.77136786642092,  y: 143.57958241576853,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 52, x: 44.50727489052912,  y: 75.39310867499148,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 51, x: 146.82458564898633,  y: -159.5697419971145,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 50, x: 202.38218771719943,  y: -219.8478062679168,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 49, x: 211.37139886204494,  y: 12.230979081282413,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 48, x: -93.50587127415592,  y: 38.093160274248135,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 47, x: -152.38179837076387,  y: 58.043021034989465,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 46, x: -127.5472363966125,  y: -94.03803663807662,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 45, x: 88.09601843541896,  y: 211.2253197316685,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 44, x: -140.15127892852212,  y: 188.9845353412457,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 43, x: 40.964085676394916,  y: -175.6490782192365,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 42, x: -38.40181716163872,  y: 188.60517620381825,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 41, x: -50.09962301035122,  y: -56.527148489520584,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 40, x: 205.47328649507574,  y: 137.1859646558217,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 39, x: -62.07752143431958,  y: 210.3493952106072,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 38, x: -120.90726000210327,  y: -201.65709416702617,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 37, x: 102.51125161581786,  y: 211.8854408541585,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 36, x: 36.27917044606818,  y: 26.43390598927195,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 35, x: 70.60853294050202,  y: 90.26399382500932,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 34, x: 117.29223078233696,  y: -15.32580406915693,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 33, x: 133.70859078221076,  y: -22.428813896727092,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 32, x: 138.19754390194214,  y: 191.9971808100479,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 31, x: -108.73131865942375,  y: 173.2165665069868,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 30, x: -151.23954996659268,  y: 91.81469881015704,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 29, x: -6.2559841457453444,  y: 70.17603174710399,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 28, x: 28.992158690087024,  y: -88.522442572328,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 27, x: 177.46401791047754,  y: 157.23922759823034,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 26, x: 89.7204456697641,  y: -96.53687949133119,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 25, x: 214.17432607491088,  y: 185.52869526865618,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 24, x: 137.71126960065806,  y: -131.2663292785581,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 23, x: 180.04545296522252,  y: 144.6567654503462,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 22, x: -83.3162829840216,  y: -172.0483913623902,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 21, x: 67.89195238757594,  y: -158.6320143385728,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 20, x: -84.11721184074105,  y: -205.8287868752589,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 19, x: -153.34812285877763,  y: 204.94255123730431,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 18, x: 48.59972825891839,  y: -182.1732860671983,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 17, x: -132.51216804219007,  y: 190.3333216581051,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 16, x: -115.60701237248608,  y: 148.60781731891944,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 15, x: -199.29733824034076,  y: 134.11051209834562,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 14, x: 26.347888469785204,  y: -9.900629713891107,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 13, x: -168.93029867342582,  y: 159.88733207596982,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 12, x: -188.70547594478793,  y: 169.48869658482158,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 11, x: -59.40989051316785,  y: -4.797833296811859,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 10, x: -185.43528402089387,  y: 59.32452557876701,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 9, x: 160.36036219166903,  y: 53.92838306867458,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 8, x: -207.88168773193323,  y: -218.06266933767947,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 7, x: -83.43091759552698,  y: 5.117044458407776,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 6, x: 114.08663956843424,  y: 159.06421863206407,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 5, x: -145.81948204651266,  y: -109.2411609153341,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 4, x: 205.7521827366969,  y: 67.9011295024327,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 3, x: 121.96720678326301,  y: -10.139039668152805,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 2, x: -55.47236846791293,  y: 209.3216934721769,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+#     - {id: 1, x: 81.37229451169804,  y: 75.64383291284645,  width: 5.0, length: 5.0, height: 100.0, speed: 0.0, hold_heading_time: 1.0}
+
