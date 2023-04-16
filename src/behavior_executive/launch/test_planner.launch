@@ -1,0 +1,6 @@
+<launch>
+      <include file="$(find simple_mapf_sim)/launch/sim.launch" />
+
+      <node name="behavior_executive_node" pkg="behavior_executive" type="behavior_executive_node.py" output="screen" respawn="false" />
+      <node name="lz_planner" pkg="planner_pkg" type="landing_planner" output="screen" respawn="false" />
+</launch>

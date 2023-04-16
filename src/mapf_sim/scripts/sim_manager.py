@@ -55,7 +55,7 @@ class SimManager:
         
         self.map_size = 100.0 # meters
         self.map_resolution = 1.0  # meters
-        self.coverage_size = 50.0 # meters
+        self.coverage_size = 10.0 # meters
         self.covered_value = 50.0
         self.map_voxels = int(self.map_size / self.map_resolution)
         self.coverage_map = np.ones(self.map_voxels**2, dtype=int)
@@ -378,90 +378,6 @@ class SimManager:
 
         return markers
 
-    """
-    Four points of the sensor footprint polygon.
-    """
-    def get_projection_points_marker(self, time, frame, vehicle_pose, camera_projection):
-        markers = MarkerArray()
-
-        for i in range(self.sim_env.vehicle_num):
-            projection_points_marker = Marker()
-            projection_points_marker.header.frame_id = frame
-            projection_points_marker.header.stamp = time
-            projection_points_marker.ns = "projection_marker"
-            projection_points_marker.id = i
-            projection_points_marker.type = Marker.POINTS
-            projection_points_marker.action = Marker.ADD
-            projection_points_marker.color.r = 1
-            projection_points_marker.color.g = 1
-            projection_points_marker.color.b = 0
-            projection_points_marker.color.a = 1
-            projection_points_marker.scale.x = 1
-            projection_points_marker.scale.y = 1
-            projection_points_marker.scale.z = 1
-            points = []
-            for np_point in camera_projection[i]:
-                ros_point = Point()
-                ros_point.x = np_point[0]
-                ros_point.y = np_point[1]
-                ros_point.z = np_point[2]
-                points.append(ros_point)
-            projection_points_marker.points = points
-            markers.markers.append(projection_points_marker)
-        return markers
-
-    def get_projection_marker(self, time, frame, vehicle_pose, camera_projection):
-        marker_list = MarkerArray()
-        proj_marker_list = []
-
-        for vehicle_id in range(self.sim_env.vehicle_num):
-            projection_marker = Marker()
-            projection_marker.header.frame_id = frame
-            projection_marker.header.stamp = time
-            projection_marker.ns = "projection_marker"
-            projection_marker.id = vehicle_id
-            projection_marker.type = Marker.LINE_STRIP
-            projection_marker.action = Marker.ADD
-            # projection_marker.lifetime = rospy.Duration()
-            projection_marker.color.r = 1
-            projection_marker.color.g = 69/255
-            projection_marker.color.b = 0
-            projection_marker.color.a = 1
-            projection_marker.scale.x = 1
-            projection_marker.scale.y = 1
-            projection_marker.scale.z = 1
-
-            points = []
-
-            vehicle_point = Point()
-            vehicle_point.x = vehicle_pose.poses[vehicle_id].pose.position.x
-            vehicle_point.y = vehicle_pose.poses[vehicle_id].pose.position.y
-            vehicle_point.z = vehicle_pose.poses[vehicle_id].pose.position.z
-
-            # connect the projected camera bounds
-            for edge in range(len(camera_projection[vehicle_id])):
-                point_a = Point()
-                point_a.x = camera_projection[vehicle_id][edge][0]
-                point_a.y = camera_projection[vehicle_id][edge][1]
-                point_a.z = camera_projection[vehicle_id][edge][2]
-
-                point_b = Point()
-                point_b.x = camera_projection[vehicle_id][(edge + 1) % len(camera_projection[vehicle_id])][0]
-                point_b.y = camera_projection[vehicle_id][(edge + 1) % len(camera_projection[vehicle_id])][1]
-                point_b.z = camera_projection[vehicle_id][(edge + 1) % len(camera_projection[vehicle_id])][2]
-
-                points.append(point_b)
-                points.append(point_a)
-                points.append(vehicle_point)
-                points.append(point_b)
-                points.append(point_a)
-
-            projection_marker.points = points
-            proj_marker_list.append(projection_marker)
-
-        marker_list.markers = proj_marker_list
-        return marker_list
-
     def get_targets_marker(self, time, frame, target_positions):
         targets_marker_array = MarkerArray()
 
@@ -508,33 +424,25 @@ class SimManager:
         waypt_num_pub = rospy.Publisher('/drone_sim/waypt_num', UInt8, queue_size=10)
         vehicle_pose_pub = rospy.Publisher('/drone_sim/vehicle_poses', PoseStampedArray, queue_size=10)
         target_pose_pub = rospy.Publisher('/drone_sim/target_poses', TargetPoses, queue_size=10)
-        sensor_detections_pub = rospy.Publisher('/drone_sim/sensor_measurement', Detections, queue_size=10)
-        camera_pose_pub = rospy.Publisher('/drone_sim/camera_pose', OdometryArray, queue_size=10)
+
         obstacle_pose_pub = rospy.Publisher('/drone_sim/obstacles', ObstacleArray, queue_size=10)
         occ_grid_pub = rospy.Publisher('/drone_sim/occupancy_grid', OccupancyGrid, queue_size=10, latch=True)
         coverage_grid_pub = rospy.Publisher('/drone_sim/coverage_grid', OccupancyGrid, queue_size=10)
         vehicle_in_collision_pub = rospy.Publisher('/drone_sim/collision_detected', Bool, queue_size=10)
-        vehicle_battery_pub = rospy.Publisher('/drone_sim/vehicle_battery', BatteryArray, queue_size=10)
 
         # Marker Publishers
         vehicle_marker_pub = rospy.Publisher('/drone_sim/markers/vehicle_pose', MarkerArray, queue_size=10)
-        projection_marker_pub = rospy.Publisher('/drone_sim/markers/camera_projection', MarkerArray, queue_size=10)
-        projection_points_marker_pub = rospy.Publisher('/drone_sim/markers/camera_projection_points', MarkerArray, queue_size=10)
         targets_marker_pub = rospy.Publisher('/drone_sim/markers/targets', MarkerArray, queue_size=10)
         vehicle_trajectory_pub = rospy.Publisher('/drone_sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
         obstacles_marker_pub = rospy.Publisher('/drone_sim/markers/obstacles', MarkerArray, queue_size=10)
 
         waypt_sub = rospy.Subscriber(self.planner_path_topic, Plan, self.planner_callback)
-        landing_sub = rospy.Subscriber('/drone_sim/command_land', UInt8, self.command_land_callback)
-        takeoff_sub = rospy.Subscriber('/drone_sim/command_takeoff', UInt8, self.command_takeoff_callback)
-        reduce_battery_sub = rospy.Subscriber('/drone_sim/command_reduce_battery', UInt8, self.command_reduce_battery_callback)
         rate = rospy.Rate(1/self.sim_env.del_t)
         counter = 0
         start_time = rospy.Time.now()
         time_since_last_write = start_time
 
         collision_detected = False
-
         published_grid = False
 
         while not rospy.is_shutdown():
@@ -542,34 +450,24 @@ class SimManager:
             frame = "local_enu"
             vehicle_position = self.get_vehicle_position(time, frame)
             # target_positions = self.get_target_positions(time, frame)
-            # target_detections, camera_projection = self.get_target_detections(time, frame)
-            # camera_pose = self.get_camera_pose(time, frame)
             waypoint_number  = self.get_waypt_num()
 
             waypt_num_pub.publish(waypoint_number)
             vehicle_pose_pub.publish(vehicle_position)
-            # target_pose_pub.publish(target_positions)
-            # sensor_detections_pub.publish(target_detections)
-            # camera_pose_pub.publish(camera_pose)
+
             obstacle_pose_pub.publish(self.get_obstacle_positions(time, frame))
             coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
             if not published_grid:
                 occ_grid_pub.publish(self.get_occupancy_grid(time, frame))
                 published_grid = True
 
-            # publish battery_pub
-            # vehicle_battery_pub.publish(self.get_vehicle_battery(time))
             vehicle_marker_pub.publish(self.get_vehicle_marker(time, frame, vehicle_position))
-            # projection_marker_pub.publish(self.get_projection_marker(time, frame, vehicle_position, camera_projection))
-            # projection_points_marker_pub.publish(self.get_projection_points_marker(time, frame, vehicle_position, camera_projection))
-            # targets_marker_pub.publish(self.get_targets_marker(time, frame, target_positions))
+
             obstacles_marker_pub.publish(self.get_obstacle_markers(time, frame))
             if counter % 10 == 0:
                 vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame, vehicle_position))
 
             counter += 1
-            # if counter == 100:
-            #     # Currently doing state update every 100 iters
             self.sim_env.update_states()
 
             if self.sim_env.is_in_collision():
@@ -579,7 +477,6 @@ class SimManager:
             msg_collision.data = collision_detected
             vehicle_in_collision_pub.publish(msg_collision)
 
-                # counter = 0
             rate.sleep()
 
 

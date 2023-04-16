@@ -3,7 +3,6 @@ import random
 from turtle import heading
 import numpy as np
 from simple_mapf_sim.vehicle import *
-from simple_mapf_sim.target import *
 from simple_mapf_sim.obstacle import *
 from geographic_msgs.msg import GeoPose
 
@@ -15,24 +14,22 @@ class Environment:
         '''
         Setup simulation environment
         '''
-        # if initial position not specified, randomly spawn vehicle between (50, 1000)
-        init_x = random.randrange(50, 1000) if init_x is None else init_x
-        init_y = random.randrange(50, 1000) if init_y is None else init_y
-        init_z = random.randrange(20, 120,
-                                  20) if init_z is None else init_z  # discretized by step-size 20
-        # drone pose
+        # vehicle pose
         self.init_x = init_x
         self.init_y = init_y
         self.init_z = init_z
 
         self.vehicle_num = vehicle_num
+        
         self.del_t = del_t
+        self.current_timestep = 0
 
         # if targets not specified, randomly generate between 1-10 targets
         self.n_rand_obst = random.randrange(1, 10) if not list_of_obstacle_dicts and n_rand_obst == -1 else n_rand_obst
-
         self.obstacles = self.generate_obstacles(list_of_obstacle_dicts, self.n_rand_obst)
 
+
+        self.comms_nodes = []
         self.global_waypt_list = [[] for i in range(vehicle_num)]
 
         self.waypt_threshold = waypt_threshold
