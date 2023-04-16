@@ -14,8 +14,6 @@ del_t: .02  # timestep between sim updates
 waypt_threshold: 3.0
 
 obstacles:
-    - {id: 3, x: 15,  y: 15,  width: 1.0, length: 5.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
-    - {id: 2, x: -15,  y: 15,  width: 1.0, length: 5.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
-    - {id: 1, x: -15,  y: -15,  width: 1.0, length: 5.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
-
-
+    - {id: 3, x: 15,  y: 15,  width: 2.0, length: 6.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
+    - {id: 2, x: -15,  y: 15,  width: 2.0, length: 6.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
+    - {id: 1, x: -15,  y: -15,  width: 1.0, length: 6.0, height: 20.0, speed: 0.0, hold_heading_time: 1.0}
