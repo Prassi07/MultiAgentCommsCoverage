@@ -53,15 +53,10 @@ add_message_files(
   FILES
   Plan.msg
   Waypoint.msg
-  Detections.msg
-  TargetPose.msg
-  TargetPoses.msg
   ObstaclePose.msg
   ObstacleArray.msg
   PoseStampedArray.msg
   OdometryArray.msg
-  EstimatedTargetStates.msg
-  TargetCovariance.msg
   Battery.msg
   BatteryArray.msg
 )

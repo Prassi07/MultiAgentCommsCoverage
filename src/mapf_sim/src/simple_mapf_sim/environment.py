@@ -4,90 +4,66 @@ from turtle import heading
 import numpy as np
 from simple_mapf_sim.vehicle import *
 from simple_mapf_sim.obstacle import *
+from simple_mapf_sim.basestation import *
+from simple_mapf_sim.comms_node import *
 from geographic_msgs.msg import GeoPose
 
 
 class Environment:
     def __init__(self, init_x=None, init_y=None, init_z=None,
-                 vehicle_num=3, n_rand_obst=-1, del_t=1,
-                 waypt_threshold=5, list_of_obstacle_dicts=[]):
+                 vehicle_num=3, del_t=1,
+                 waypt_threshold=5, list_of_obstacle_dicts=[], nodes_per_robot=10):
         '''
         Setup simulation environment
         '''
-        # vehicle pose
+        # Basestation pose
         self.init_x = init_x
         self.init_y = init_y
         self.init_z = init_z
 
         self.vehicle_num = vehicle_num
-        
         self.del_t = del_t
         self.current_timestep = 0
-
-        # if targets not specified, randomly generate between 1-10 targets
-        self.n_rand_obst = random.randrange(1, 10) if not list_of_obstacle_dicts and n_rand_obst == -1 else n_rand_obst
-        self.obstacles = self.generate_obstacles(list_of_obstacle_dicts, self.n_rand_obst)
-
-
+        
+        self.basestation = Basestation(self.init_x, self.init_y, self.init_z, self.vehicle_num)
+        
+        self.obstacles = self.generate_obstacles(list_of_obstacle_dicts)
+        
         self.comms_nodes = []
+        self.nodes_per_robot = nodes_per_robot
+        
+        vehicle_positions = self.basestation.getInitialRobotPositions()
+        
+        self.vehicles = []
+        for robot in range(self.vehicle_num):
+            self.vehicles.append(self.init_vehicle(robot, vehicle_positions[robot]))
+        
         self.global_waypt_list = [[] for i in range(vehicle_num)]
 
         self.waypt_threshold = waypt_threshold
-        self.vehicle = [self.init_vehicle(i) for i in range(self.vehicle_num)]
-
-
         self.curr_waypt_num = 0
 
     def is_in_collision(self):
         for i in range(self.vehicle_num):
             for obst in self.obstacles:
-                if obst.is_in_collision(self.vehicle[i].x, self.vehicle[i].y, self.vehicle[i].z):
+                if obst.is_in_collision(self.vehicles[i].x, self.vehicles[i].y, self.vehicles[i].z):
                     return True
         return False
 
-    def generate_obstacles(self, obsts, num_obst):
-        if obsts is None or len(obsts) == 0:
-            obstacles = []
-            idx = num_obst
-            while idx > 0:
-                obst = Obstacle(
-                    id=idx,
-                    init_x=np.random.uniform(-220, 220),
-                    init_y=np.random.uniform(-220, 220),
-                    width=5.0,
-                    length=5.0,
-                    height=100.0,
-                    speed=0.0,
-                    hold_heading_time=1.
-                )
+    def generate_obstacles(self, obsts):
+        obstacles = [
+            Obstacle(
+                id=obst["id"],
+                init_x=obst["x"], init_y=obst["y"],
+                width=obst["width"],
+                length=obst["length"],
+                height=obst["height"]
+            ) for obst in obsts
+        ]
+        return obstacles
 
-                if not obst.is_in_collision(self.init_x, self.init_y, 40.0):
-                    obstacles.append(obst)
-                    idx = idx - 1
-            for o in obstacles:
-                print(str(o))
-            return obstacles
-        else:
-            obstacles = [
-                Obstacle(
-                    id=obst["id"],
-                    init_x=obst["x"], init_y=obst["y"],
-                    width=obst["width"],
-                    length=obst["length"],
-                    height=obst["height"],
-                    speed=obst["speed"],
-                    hold_heading_time=obst["hold_heading_time"]
-                ) for obst in obsts
-            ]
-            return obstacles
-
-    def init_vehicle(self, id_num):
-        return Vehicle(id_num=id_num,
-                       init_x=self.init_x,
-                       init_y=self.init_y+(id_num*200),
-                       init_z=self.init_z + (id_num*20),
-                       comms_nodes_inventory = 10,
-                       del_t=self.del_t)
+    def init_vehicle(self, id_num, position):
+        return Vehicle(id_num = id_num, init_x = position[0], init_y = position[1], init_z = position[2], comms_nodes_inventory = self.nodes_per_robot, del_t=self.del_t)
 
 
     def traverse(self):
@@ -143,14 +119,3 @@ class Environment:
         '''
         self.traverse()
 
-        # update the states for all ships in the environment
-        for obstacle in self.obstacles:
-            obstacle.update()
-
-    def get_vehicle_uncertainty(self, id_num):
-        return self.vehicle[id_num].position_uncertainty()
-
-    # function that gets target heading and return heading with gaussian noise
-    def get_target_heading_noise(self, heading):
-        # gaussian noise model for now
-        return heading + np.random.normal(0, 0.05)

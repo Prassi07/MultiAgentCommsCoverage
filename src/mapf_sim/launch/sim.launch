@@ -1,8 +1,4 @@
 <launch>
-    <group ns="env_setup">
-        <arg name="vehicle_num" default="1"/>
-        <rosparam command="load" file="$(find simple_mapf_sim)/config/sim.yaml" subst_value="True"/>
-    </group>
 
     <node pkg="tf" type="static_transform_publisher" name="local_enu_tf_broadcaster" args="0 0 0 0 0 0 1 world local_enu 100" />
 
@@ -10,6 +6,7 @@
     <node type="rviz" name="rviz" pkg="rviz"
         args="-d $(find simple_mapf_sim)/rviz/sim.rviz" if="$(eval arg('rviz') == true)"/>
 
+    <rosparam command="load" file="$(find simple_mapf_sim)/config/sim.yaml" subst_value="True"/>
     <node name="sim_manager_node" pkg="simple_mapf_sim" type="sim_manager.py" output="screen" respawn="false">
         <param name="planner_path" value="/global_path"/>
     </node>

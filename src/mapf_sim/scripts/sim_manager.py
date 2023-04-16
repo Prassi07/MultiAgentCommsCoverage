@@ -13,34 +13,31 @@ from geometry_msgs.msg import PoseStamped, Point, Pose, Quaternion, PoseArray
 from std_msgs.msg import ColorRGBA, Bool
 from nav_msgs.msg import Odometry, OccupancyGrid
 from std_msgs.msg import UInt8
-from simple_mapf_sim.msg import TargetPoses, TargetPose, Detections, BatteryArray, Battery
 from tf.transformations import quaternion_from_euler
-
+from math import ceil, floor
+import copy
 from visualization_msgs.msg import Marker, MarkerArray
 
 package = RosPack()
 package_path = package.get_path("simple_mapf_sim")
 
-# https://sashamaps.net/docs/resources/20-colors/
-COLORS = [[230, 25, 75],   [60, 180, 75],   [255, 225, 25], [0, 130, 200],
-               [245, 130, 48],  [145, 30, 180],  [70, 240, 240], [240, 50, 230],
-               [210, 245, 60],  [250, 190, 212], [0, 128, 128],  [220, 190, 255],
-               [170, 110, 40],  [255, 250, 200], [128, 0, 0],    [170, 255, 195],
-               [128, 128, 0],   [255, 215, 180], [0, 0, 128],    [128, 128, 128],
-               [255, 255, 255], [0, 0, 0]]
-def get_color(index):
+ROBOT_COLORS = [[0.9, 0.6, 0.1], [1, 0, 0], [0, 0, 1], [1, 1, 0],
+                [0, 1, 1]]
+
+def get_obstacle_color():
     ros_color = ColorRGBA()
-    ros_color.r = 0.0
-    ros_color.g = 1.0
-    ros_color.b = 0.0
-    ros_color.a = 1.0
+    ros_color.r = 0.15
+    ros_color.g = 0.15
+    ros_color.b = 0.15
+    ros_color.a = 0.8
     return  ros_color
 
-def get_color_target(index):
+def get_color_robot(index):
+    total_colors = len(ROBOT_COLORS) 
     ros_color = ColorRGBA()
-    ros_color.r = 1.0
-    ros_color.g = 0.0
-    ros_color.b = 0.0
+    ros_color.r = ROBOT_COLORS[int(index % total_colors)][0]
+    ros_color.g = ROBOT_COLORS[int(index % total_colors)][1]
+    ros_color.b = ROBOT_COLORS[int(index % total_colors)][2]
     ros_color.a = 1.0
     return  ros_color
 
@@ -56,36 +53,34 @@ class SimManager:
         self.map_size = 100.0 # meters
         self.map_resolution = 1.0  # meters
         self.coverage_size = 10.0 # meters
-        self.covered_value = 50.0
+        self.covered_value = 25.0
         self.map_voxels = int(self.map_size / self.map_resolution)
         self.coverage_map = np.ones(self.map_voxels**2, dtype=int)
 
     def env_setup(self):
 
         # obstacles
-        obst_list = rospy.get_param("/env_setup/obstacles", [])
+        obst_list = rospy.get_param("obstacles", [])
 
-        # drone state
-        init_x = rospy.get_param("/env_setup/init_x")
-        init_y = rospy.get_param("/env_setup/init_y")
-        init_z = rospy.get_param("/env_setup/init_z")
+        # basestation state
+        init_x = rospy.get_param("/basestation_x")
+        init_y = rospy.get_param("/basestation_y")
+        init_z = rospy.get_param("/basestation_z")
 
-        vehicle_num = rospy.get_param("/env_setup/vehicle_num")
+        vehicle_num = rospy.get_param("/vehicle_num")
+        del_t = rospy.get_param("/del_t")
 
-        n_rand_obst =  rospy.get_param("/env_setup/n_rand_obst")
+        waypt_threshold = rospy.get_param("/waypt_threshold")
 
-        del_t = rospy.get_param("/env_setup/del_t")
-
-        waypt_threshold = rospy.get_param("/env_setup/waypt_threshold")
-
+        nodes_per_robot = rospy.get_param("/nodes_per_robot")
         return Environment( init_x,
                             init_y,
                             init_z,
                             vehicle_num,
-                            n_rand_obst,
                             del_t,
                             waypt_threshold,
-                            obst_list)
+                            obst_list, 
+                            nodes_per_robot)
 
     def get_vehicle_position(self, time, frame):
         v_poses = PoseStampedArray()
@@ -97,10 +92,9 @@ class SimManager:
             vehicle_pose = PoseStamped()
             vehicle_pose.header.frame_id = frame
             vehicle_pose.header.stamp = time
-            # print self.sim_env.vehicle.x
-            vehicle_pose.pose.position.x = self.sim_env.vehicle[id_num].x
-            vehicle_pose.pose.position.y = self.sim_env.vehicle[id_num].y
-            vehicle_pose.pose.position.z = self.sim_env.vehicle[id_num].z
+            vehicle_pose.pose.position.x = self.sim_env.vehicles[id_num].x
+            vehicle_pose.pose.position.y = self.sim_env.vehicles[id_num].y
+            vehicle_pose.pose.position.z = self.sim_env.vehicles[id_num].z
 
             quat = quaternion_from_euler(0, 0, 0)
             vehicle_pose.pose.orientation.x = quat[0]
@@ -114,20 +108,36 @@ class SimManager:
         return v_poses
     
     def get_coverage_grid(self, time, frame):
-        # for id_num in range(self.sim_env.vehicle_num):
-        #     x = self.sim_env.vehicle[id_num].x
-        #     y = self.sim_env.vehicle[id_num].y
-        #     start_y = int((y - self.coverage_size / 2. + self.map_size / 2)  / self.map_resolution)
-        #     end_y = int((y + self.coverage_size / 2. + self.map_size / 2)  / self.map_resolution)
-        #     i = start_y
-        #     while i <= end_y:
-        #         start_x = int((x - self.coverage_size / 2. + self.map_size / 2) / self.map_resolution)
-        #         end_x = int((x + self.coverage_size / 2. + self.map_size / 2) / self.map_resolution)
+        
+        new_coverage_map = copy.deepcopy(self.coverage_map)
+        # Basestation Coverage
+        bst = self.sim_env.basestation
+        start_y = int((bst.y - (self.coverage_size / 2) + (self.map_size / 2)) / self.map_resolution)
+        end_y = int((bst.y + (self.coverage_size / 2) + (self.map_size / 2)) / self.map_resolution)
+        i = start_y
+        while i < end_y:
+            start_x = int((bst.x - (self.coverage_size / 2) + (self.map_size / 2)) / self.map_resolution)
+            end_x = int((bst.x + (self.coverage_size / 2) + (self.map_size / 2)) / self.map_resolution)
+            start = i * self.map_voxels + start_x
+            end = i * self.map_voxels + end_x
+            new_coverage_map[start:end][new_coverage_map[start:end] <= self.covered_value] = self.covered_value
+            i = i + 1 
+            
+        for id_num in range(len(self.sim_env.comms_nodes)):
+            rospy.loginfo("Here")
+            x = self.sim_env.comms_nodes[id_num].x
+            y = self.sim_env.comms_nodes[id_num].y
+            start_y = int((y - self.coverage_size / 2. + self.map_size / 2)  / self.map_resolution)
+            end_y = int((y + self.coverage_size / 2. + self.map_size / 2)  / self.map_resolution)
+            i = start_y
+            while i < end_y:
+                start_x = int((x - self.coverage_size / 2. + self.map_size / 2) / self.map_resolution)
+                end_x = int((x + self.coverage_size / 2. + self.map_size / 2) / self.map_resolution)
 
-        #         start = i * self.map_voxels + start_x
-        #         end = i * self.map_voxels + end_x
-        #         self.coverage_map[start:end][self.coverage_map[start:end] <= self.covered_value] = self.covered_value
-        #         i = i + 1
+                start = i * self.map_voxels + start_x
+                end = i * self.map_voxels + end_x
+                new_coverage_map[start:end][new_coverage_map[start:end] <= self.covered_value] = self.covered_value
+                i = i + 1
 
         grid = OccupancyGrid()
         grid.header.frame_id = frame
@@ -137,10 +147,9 @@ class SimManager:
         grid.info.resolution = self.map_resolution
         grid.info.origin.position.x = -self.map_size / 2
         grid.info.origin.position.y = -self.map_size / 2
-        grid.data = self.coverage_map.tolist()
+        grid.data = new_coverage_map.tolist()
 
         return grid
-
 
     def get_obstacle_positions(self, time, frame):
         obstacles = ObstacleArray()
@@ -160,11 +169,13 @@ class SimManager:
         return obstacles
 
     def get_occupancy_grid(self, time, frame):
+        
+        # Obstacles in the occupancy grid
         for obst in self.sim_env.obstacles:
             start_y = int((obst.y - (obst.width / 2) + (self.map_size / 2))  / self.map_resolution)
             end_y = int((obst.y + (obst.width / 2) + (self.map_size / 2))  / self.map_resolution)
             i = start_y
-            while i <= end_y:
+            while i < end_y:
                 start_x = int((obst.x - (obst.length / 2) + (self.map_size / 2)) / self.map_resolution)
                 end_x = int((obst.x + (obst.length / 2) + (self.map_size / 2)) / self.map_resolution)
                 start = i * self.map_voxels + start_x
@@ -172,6 +183,19 @@ class SimManager:
                 self.coverage_map[start:end] = 100
                 i = i + 1
 
+        # Basestation in the occupancy grid
+        bst = self.sim_env.basestation
+        start_y = int((bst.y - 1 + (self.map_size / 2)) / self.map_resolution)
+        end_y = int((bst.y + 1 + (self.map_size / 2)) / self.map_resolution)
+        i = start_y
+        while i < end_y:
+            start_x = int((bst.x - 1 + (self.map_size / 2)) / self.map_resolution)
+            end_x = int((bst.x + 1 + (self.map_size / 2)) / self.map_resolution)
+            start = i * self.map_voxels + start_x
+            end = i * self.map_voxels + end_x
+            self.coverage_map[start:end] = 100
+            i = i + 1 
+            
         grid = OccupancyGrid()
         grid.header.frame_id = frame
         grid.header.stamp = time
@@ -184,18 +208,45 @@ class SimManager:
 
         return grid
 
-    def get_waypt_num(self):
-        waypt_number = UInt8()
-        waypt_number.data = self.sim_env.curr_waypt_num
-        return waypt_number
-
     def planner_callback(self, msg):
         self.sim_env.update_waypts(msg)
 
-    def get_vehicle_marker(self, time, frame, vehicle_pose):
+    def get_basestation_marker(self, time, frame):
+        basest_marker = MarkerArray()
+        
+        bst = self.sim_env.basestation
+        bst_marker = Marker()
+        bst_marker.header.frame_id = frame
+        bst_marker.header.stamp = time
+        bst_marker.ns = "basestation"
+        bst_marker.id = bst.id
+        bst_marker.type = Marker.CUBE
+        bst_marker.action = Marker.ADD
+        bst_marker.lifetime = rospy.Duration()
+        bst_marker.color.r = 0
+        bst_marker.color.g = 1
+        bst_marker.color.b = 0
+        bst_marker.color.a = 1
+        bst_marker.scale.x = 2
+        bst_marker.scale.y = 2
+        bst_marker.scale.z = 2
+
+        bst_marker.pose.position.x = bst.x
+        bst_marker.pose.position.y = bst.y
+        bst_marker.pose.position.z = bst.z
+
+        bst_marker.pose.orientation.x = 0
+        bst_marker.pose.orientation.y = 0
+        bst_marker.pose.orientation.z = 0
+        bst_marker.pose.orientation.w = 1
+        basest_marker.markers.append(bst_marker)
+        
+        return basest_marker
+        
+    def get_vehicle_marker(self, time, frame):
         veh_markers = MarkerArray()
 
-        for veh in self.sim_env.vehicle:
+        for veh in self.sim_env.vehicles:
             vehicle_marker = Marker()
             vehicle_marker.header.frame_id = frame
             vehicle_marker.header.stamp = time
@@ -204,33 +255,29 @@ class SimManager:
             vehicle_marker.type = Marker.CYLINDER
             vehicle_marker.action = Marker.ADD
             vehicle_marker.lifetime = rospy.Duration()
-            vehicle_marker.color.r = 0
-            vehicle_marker.color.g = 0
-            vehicle_marker.color.b = 1
-            vehicle_marker.color.a = 1
-            vehicle_marker.scale.x = 1
-            vehicle_marker.scale.y = 1
+            vehicle_marker.color = get_color_robot(veh.id_num)
+            vehicle_marker.scale.x = 0.9
+            vehicle_marker.scale.y = 0.9
             vehicle_marker.scale.z = 1
-            # vehicle_marker.mesh_use_embedded_materials = True
-            # vehicle_marker.mesh_resource = "package://simple_mapf_sim/meshes/drone.dae"
-            vehicle_marker.pose.position.x = veh.x
-            vehicle_marker.pose.position.y = veh.y
-            vehicle_marker.pose.position.z = veh.z
 
-            quat = quaternion_from_euler(0, 0, 0)
-            vehicle_marker.pose.orientation.x = quat[0]
-            vehicle_marker.pose.orientation.y = quat[1]
-            vehicle_marker.pose.orientation.z = quat[2]
-            vehicle_marker.pose.orientation.w = quat[3]
+
+            vehicle_marker.pose.position.x = veh.x + 0.45
+            vehicle_marker.pose.position.y = veh.y + 0.45
+            vehicle_marker.pose.position.z = veh.z + 1
+
+            vehicle_marker.pose.orientation.x = 0
+            vehicle_marker.pose.orientation.y = 0
+            vehicle_marker.pose.orientation.z = 0
+            vehicle_marker.pose.orientation.w = 1
 
             veh_markers.markers.append(vehicle_marker)
 
         return veh_markers
 
-    def get_vehicle_trajectory_marker(self, time, frame, vehicle_pose):
+    def get_vehicle_trajectory_marker(self, time, frame):
         markers = MarkerArray()
 
-        for veh in self.sim_env.vehicle:
+        for veh in self.sim_env.vehicles:
             trajectory_marker = Marker()
             trajectory_marker.header.frame_id = frame
             trajectory_marker.header.stamp = time
@@ -264,21 +311,47 @@ class SimManager:
             markers.markers.append(trajectory_marker)
 
         return markers
+    
+    def get_obstacle_markers(self, time, frame):
+        obstacles_marker_array = MarkerArray()
 
+        for idx, obstacle in enumerate(self.sim_env.obstacles):
+            obstacle_marker = Marker()
+            obstacle_marker.header.frame_id = frame
+            obstacle_marker.header.stamp = time
+            obstacle_marker.ns = "obstacle_pose"
+            obstacle_marker.id = idx
+            obstacle_marker.type = Marker.CUBE
+            obstacle_marker.action = Marker.ADD
+            obstacle_marker.lifetime = rospy.Duration()
+            obstacle_marker.pose = Pose(Point(obstacle.x,
+                                              obstacle.y,
+                                              2.5),
+                                              Quaternion(0, 0, 0, 1))
+
+            obstacle_marker.color = get_obstacle_color()
+            obstacle_marker.scale.x = obstacle.length
+            obstacle_marker.scale.y = obstacle.width
+            obstacle_marker.scale.z = 5
+            obstacles_marker_array.markers.append(obstacle_marker)
+
+        return obstacles_marker_array
+    
     def main(self):
-        waypt_num_pub = rospy.Publisher('/drone_sim/waypt_num', UInt8, queue_size=10)
-        vehicle_pose_pub = rospy.Publisher('/drone_sim/vehicle_poses', PoseStampedArray, queue_size=10)
-        target_pose_pub = rospy.Publisher('/drone_sim/target_poses', TargetPoses, queue_size=10)
-
-        obstacle_pose_pub = rospy.Publisher('/drone_sim/obstacles', ObstacleArray, queue_size=10)
-        occ_grid_pub = rospy.Publisher('/drone_sim/occupancy_grid', OccupancyGrid, queue_size=10, latch=True)
-        coverage_grid_pub = rospy.Publisher('/drone_sim/coverage_grid', OccupancyGrid, queue_size=10)
-        vehicle_in_collision_pub = rospy.Publisher('/drone_sim/collision_detected', Bool, queue_size=10)
+        
+        vehicle_pose_pub = rospy.Publisher('/sim/vehicle_poses', PoseStampedArray, queue_size=10)
+        obstacle_pose_pub = rospy.Publisher('/sim/obstacles', ObstacleArray, queue_size=10)
+        
+        occ_grid_pub = rospy.Publisher('/sim/occupancy_grid', OccupancyGrid, queue_size=10, latch=True)
+        coverage_grid_pub = rospy.Publisher('/sim/coverage_grid', OccupancyGrid, queue_size=10)
+        
+        vehicle_in_collision_pub = rospy.Publisher('/sim/collision_detected', Bool, queue_size=10)
 
         # Marker Publishers
-        vehicle_marker_pub = rospy.Publisher('/drone_sim/markers/vehicle_pose', MarkerArray, queue_size=10)
-        targets_marker_pub = rospy.Publisher('/drone_sim/markers/targets', MarkerArray, queue_size=10)
-        vehicle_trajectory_pub = rospy.Publisher('/drone_sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
+        vehicle_marker_pub = rospy.Publisher('/sim/markers/vehicle_pose', MarkerArray, queue_size=10)
+        basestation_marker_pub = rospy.Publisher('/sim/markers/basestation', MarkerArray, queue_size=10, latch=True)
+        vehicle_trajectory_pub = rospy.Publisher('/sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
+        obstacle_marker_pub = rospy.Publisher('/sim/markers/obstacles', MarkerArray, queue_size=10, latch=True)
 
         waypt_sub = rospy.Subscriber(self.planner_path_topic, Plan, self.planner_callback)
         rate = rospy.Rate(1/self.sim_env.del_t)
@@ -292,23 +365,24 @@ class SimManager:
         while not rospy.is_shutdown():
             time = rospy.Time.now()
             frame = "local_enu"
+            
             vehicle_position = self.get_vehicle_position(time, frame)
-            # target_positions = self.get_target_positions(time, frame)
-            waypoint_number  = self.get_waypt_num()
-
-            waypt_num_pub.publish(waypoint_number)
             vehicle_pose_pub.publish(vehicle_position)
 
             obstacle_pose_pub.publish(self.get_obstacle_positions(time, frame))
-            coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
+            
             if not published_grid:
                 occ_grid_pub.publish(self.get_occupancy_grid(time, frame))
+                basestation_marker_pub.publish(self.get_basestation_marker(time, frame))
+                obstacle_marker_pub.publish(self.get_obstacle_markers(time, frame))
                 published_grid = True
 
-            vehicle_marker_pub.publish(self.get_vehicle_marker(time, frame, vehicle_position))
-
+            vehicle_marker_pub.publish(self.get_vehicle_marker(time, frame))
+            # if(abs(self.sim_env.current_timestep - int(self.sim_env.current_timestep)) < 0.1):
+            coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
+            
             if counter % 10 == 0:
-                vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame, vehicle_position))
+                vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame))
 
             counter += 1
             self.sim_env.update_states()
