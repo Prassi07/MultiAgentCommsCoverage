@@ -22,6 +22,8 @@
 #include "planner_commons.h"
 
 #include "simple_mapf_sim/PoseStampedArray.h"
+#include "simple_mapf_sim/CommsNodeArray.h"
+#include "simple_mapf_sim/CommsNodeMsg.h"
 #include "simple_mapf_sim/Waypoint.h"
 #include "simple_mapf_sim/Plan.h"
 #include "simple_mapf_sim/MultiRobotPlan.h"
@@ -57,7 +59,7 @@ class PlannerNode{
         // Callback Methods
         void OdometryHandler(const simple_mapf_sim::PoseStampedArray::ConstPtr& msg);
         void OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& msg);
-        // void TargetHandler(const simple_mapf_sim::TargetPoses::ConstPtr& msg);
+        void TargetHandler(const simple_mapf_sim::CommsNodeArray::ConstPtr& msg);
         void ComputePlanHandler(const std_msgs::UInt8::ConstPtr& msg);
 
         // Rosnode variables
@@ -70,8 +72,15 @@ class PlannerNode{
 
         //Planner Variables
         int dimx, dimy;
+        float map_resolution, x_offset, y_offset;
         std::unordered_set<Location> obstacles;
         std::vector<Location> goals;
         std::vector<State> startStates;
+        std::vector<int8_t, std::allocator<int8_t>> map;
+        float w; //ECBS Relaxation
+
+        
+        //Helper Methods
+        inline int getMapIndex(int x, int y);
 };
 #endif

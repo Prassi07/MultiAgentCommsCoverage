@@ -3,6 +3,8 @@
 
 #include "planner_commons.h"
 #include "mapf_lib/ecbs.hpp"
+#include <boost/functional/hash.hpp>
+#include <boost/program_options.hpp>
 
 class ECBS_Environment {
  public:
