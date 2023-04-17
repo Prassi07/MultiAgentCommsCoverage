@@ -112,6 +112,7 @@ class SimManager:
         comms_poses.header.frame_id = frame
         comms_poses.header.stamp = time
         
+        comms_poses.nodes.append(CommsNodeMsg(id = 0, x = self.sim_env.basestation.x, y = self.sim_env.basestation.y))
         for i in range(len(self.sim_env.comms_nodes)):
             comms = CommsNodeMsg()
             comms.x = self.sim_env.comms_nodes[i].x
