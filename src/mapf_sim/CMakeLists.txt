@@ -59,6 +59,8 @@ add_message_files(
   OdometryArray.msg
   Battery.msg
   BatteryArray.msg
+  CommsNodeMsg.msg
+  CommsNodeArray.msg
 )
 
 ## Generate services in the 'srv' folder

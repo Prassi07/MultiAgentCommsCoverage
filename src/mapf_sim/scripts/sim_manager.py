@@ -7,7 +7,7 @@ import time
 
 
 from rospkg import RosPack
-from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray
+from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray, CommsNodeMsg, CommsNodeArray
 from simple_mapf_sim.environment import *
 from geometry_msgs.msg import PoseStamped, Point, Pose, Quaternion, PoseArray
 from std_msgs.msg import ColorRGBA, Bool
@@ -107,6 +107,21 @@ class SimManager:
         v_poses.poses = poses_array
         return v_poses
     
+    def get_comms_positions(self, time, frame):
+        comms_poses = CommsNodeArray()
+        comms_poses.header.frame_id = frame
+        comms_poses.header.stamp = time
+        
+        for i in range(len(self.sim_env.comms_nodes)):
+            comms = CommsNodeMsg()
+            comms.x = self.sim_env.comms_nodes[i].x
+            comms.y = self.sim_env.comms_nodes[i].y
+            comms.id = self.sim_env.comms_nodes[i].id
+            
+            comms_poses.nodes.append(comms)
+            
+        return comms_poses
+    
     def get_coverage_grid(self, time, frame):
         
         new_coverage_map = copy.deepcopy(self.coverage_map)
@@ -124,7 +139,6 @@ class SimManager:
             i = i + 1 
             
         for id_num in range(len(self.sim_env.comms_nodes)):
-            rospy.loginfo("Here")
             x = self.sim_env.comms_nodes[id_num].x
             y = self.sim_env.comms_nodes[id_num].y
             start_y = int((y - self.coverage_size / 2. + self.map_size / 2)  / self.map_resolution)
@@ -337,10 +351,41 @@ class SimManager:
 
         return obstacles_marker_array
     
+    def get_comms_nodes_markers(self, time, frame):
+        comms_marker_array = MarkerArray()
+
+        for idx, node in enumerate(self.sim_env.comms_nodes):
+            comms_marker = Marker()
+            comms_marker.header.frame_id = frame
+            comms_marker.header.stamp = time
+            comms_marker.ns = "comms_node"
+            comms_marker.id = node.id
+            comms_marker.type = Marker.ARROW
+            comms_marker.action = Marker.ADD
+            comms_marker.lifetime = rospy.Duration()
+            
+            quat = quaternion_from_euler(0, -1.57, 0)
+            comms_marker.pose.position.x = node.x
+            comms_marker.pose.position.y = node.y
+            comms_marker.pose.position.z = 0.1
+            comms_marker.pose.orientation.x = quat[0]
+            comms_marker.pose.orientation.y = quat[1]
+            comms_marker.pose.orientation.z = quat[2]
+            comms_marker.pose.orientation.w = quat[3]
+
+            comms_marker.color = ColorRGBA(1, 0, 1, 1)
+            comms_marker.scale.x = 2
+            comms_marker.scale.y = 0.25
+            comms_marker.scale.z = 0.25
+            comms_marker_array.markers.append(comms_marker)
+
+        return comms_marker_array
+        
     def main(self):
         
         vehicle_pose_pub = rospy.Publisher('/sim/vehicle_poses', PoseStampedArray, queue_size=10)
         obstacle_pose_pub = rospy.Publisher('/sim/obstacles', ObstacleArray, queue_size=10)
+        comms_pose_pub = rospy.Publisher('/sim/comms_nodes', CommsNodeArray, queue_size=10)
         
         occ_grid_pub = rospy.Publisher('/sim/occupancy_grid', OccupancyGrid, queue_size=10, latch=True)
         coverage_grid_pub = rospy.Publisher('/sim/coverage_grid', OccupancyGrid, queue_size=10)
@@ -349,6 +394,7 @@ class SimManager:
 
         # Marker Publishers
         vehicle_marker_pub = rospy.Publisher('/sim/markers/vehicle_pose', MarkerArray, queue_size=10)
+        comms_marker_pub = rospy.Publisher('/sim/markers/comms_marker', MarkerArray, queue_size=10)
         basestation_marker_pub = rospy.Publisher('/sim/markers/basestation', MarkerArray, queue_size=10, latch=True)
         vehicle_trajectory_pub = rospy.Publisher('/sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
         obstacle_marker_pub = rospy.Publisher('/sim/markers/obstacles', MarkerArray, queue_size=10, latch=True)
@@ -366,9 +412,9 @@ class SimManager:
             time = rospy.Time.now()
             frame = "local_enu"
             
-            vehicle_position = self.get_vehicle_position(time, frame)
-            vehicle_pose_pub.publish(vehicle_position)
-
+            
+            vehicle_pose_pub.publish(self.get_vehicle_position(time, frame))
+            comms_pose_pub.publish(self.get_comms_positions(time, frame))
             obstacle_pose_pub.publish(self.get_obstacle_positions(time, frame))
             
             if not published_grid:
@@ -378,6 +424,8 @@ class SimManager:
                 published_grid = True
 
             vehicle_marker_pub.publish(self.get_vehicle_marker(time, frame))
+            comms_marker_pub.publish(self.get_comms_nodes_markers(time, frame))
+            
             # if(abs(self.sim_env.current_timestep - int(self.sim_env.current_timestep)) < 0.1):
             coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
             

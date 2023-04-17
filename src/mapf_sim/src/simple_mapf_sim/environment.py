@@ -29,7 +29,7 @@ class Environment:
         
         self.obstacles = self.generate_obstacles(list_of_obstacle_dicts)
         
-        self.comms_nodes = []
+        self.comms_nodes = [CommsNode(1, 10, 20)]
         self.nodes_per_robot = nodes_per_robot
         
         vehicle_positions = self.basestation.getInitialRobotPositions()
