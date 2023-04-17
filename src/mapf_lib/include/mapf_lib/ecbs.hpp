@@ -101,10 +101,10 @@ statistical purposes.
 
 */
 template <typename State, typename Action, typename Cost, typename Conflict,
-          typename Constraints, typename Environment>
+          typename Constraints, typename ECBS_Environment>
 class ECBS {
  public:
-  ECBS(Environment& environment, float w) : m_env(environment), m_w(w) {}
+  ECBS(ECBS_Environment& environment, float w) : m_env(environment), m_w(w) {}
 
   bool search(const std::vector<State>& initialStates,
               std::vector<PlanResult<State, Action, Cost> >& solution) {
@@ -364,7 +364,7 @@ class ECBS {
 
   struct LowLevelEnvironment {
     LowLevelEnvironment(
-        Environment& env, size_t agentIdx, const Constraints& constraints,
+        ECBS_Environment& env, size_t agentIdx, const Constraints& constraints,
         const std::vector<PlanResult<State, Action, Cost> >& solution)
         : m_env(env)
           // , m_agentIdx(agentIdx)
@@ -409,14 +409,14 @@ class ECBS {
     }
 
    private:
-    Environment& m_env;
+    ECBS_Environment& m_env;
     // size_t m_agentIdx;
     // const Constraints& m_constraints;
     const std::vector<PlanResult<State, Action, Cost> >& m_solution;
   };
 
  private:
-  Environment& m_env;
+  ECBS_Environment& m_env;
   float m_w;
   typedef AStarEpsilon<State, Action, Cost, LowLevelEnvironment>
       LowLevelSearch_t;

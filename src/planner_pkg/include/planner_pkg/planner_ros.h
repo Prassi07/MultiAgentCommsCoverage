@@ -1,4 +1,4 @@
-#ifndef _PLANNER_ROSN_H_
+#ifndef _PLANNER_ROS_H_
 #define _PLANNER_ROS_H_
 
 #include <ros/ros.h>
@@ -13,15 +13,18 @@
 #include <std_msgs/Header.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/UInt8.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <visualization_msgs/Marker.h>
 #include "planner_pkg/PlannerStats.h"
 
-#include "../../include/landing_planner/landing_planner.h"
+#include "ecbs_planner.h"
+#include "planner_commons.h"
 
 #include "simple_mapf_sim/PoseStampedArray.h"
-#include "simple_mapf_sim/BatteryArray.h"
-#include "simple_mapf_sim/TargetPoses.h"
+#include "simple_mapf_sim/Waypoint.h"
+#include "simple_mapf_sim/Plan.h"
+#include "simple_mapf_sim/MultiRobotPlan.h"
 
 #include <string>
 #include <iostream> 
@@ -29,10 +32,10 @@
 #include <vector>
 #include <stdlib.h>
 
-class LandingPlannerNode{
+class PlannerNode{
     public:
-        LandingPlannerNode();
-        ~LandingPlannerNode();
+        PlannerNode();
+        ~PlannerNode();
         void Run();
 
     private:
@@ -44,34 +47,31 @@ class LandingPlannerNode{
         // ROS Subscribers
         ros::Subscriber occupancy_grid_sub;
         ros::Subscriber target_locations_sub;
-
-        ros::Subscriber battery_sub;
         ros::Subscriber odom_sub;
-
-        ros::Subscriber global_plan_sub;
-        ros::Subscriber waypoint_num_sub;
-        ros::Publisher stats_pub;
+        ros::Subscriber compute_plan_sub;
 
         // ROS Publishers
+        ros::Publisher stats_pub;
         ros::Publisher plan_publisher;
 
+        // Callback Methods
         void OdometryHandler(const simple_mapf_sim::PoseStampedArray::ConstPtr& msg);
         void OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& msg);
-        void BatteryHandler(const simple_mapf_sim::BatteryArray::ConstPtr& msg);
-        void TargetHandler(const simple_mapf_sim::TargetPoses::ConstPtr& msg);
-        void GlobalPlanHandler(const  simple_mapf_sim::Plan::ConstPtr& msg);
-        void WaypointNumHandler(const std_msgs::Float32 msg);
+        // void TargetHandler(const simple_mapf_sim::TargetPoses::ConstPtr& msg);
+        void ComputePlanHandler(const std_msgs::UInt8::ConstPtr& msg);
 
+        // Rosnode variables
         float ros_rate;
         geometry_msgs::PoseStamped robot_pose;
-        float robot_battery;
-        
-        simple_mapf_sim::Plan global_plan;
-        int waypoint_number;
+        simple_mapf_sim::MultiRobotPlan global_plan;
 
-        LandingPlanner planner;
+        int planner_type;
+        bool initialized_map, init_robots_pose, init_targets, compute_plan;
 
-        bool initialized_map, init_robot_pose, init_targets, init_battery, global_plan_recv, waypoint_num_recv;
-
+        //Planner Variables
+        int dimx, dimy;
+        std::unordered_set<Location> obstacles;
+        std::vector<Location> goals;
+        std::vector<State> startStates;
 };
 #endif

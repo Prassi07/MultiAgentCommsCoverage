@@ -61,6 +61,7 @@ add_message_files(
   BatteryArray.msg
   CommsNodeMsg.msg
   CommsNodeArray.msg
+  MultiRobotPlan.msg
 )
 
 ## Generate services in the 'srv' folder

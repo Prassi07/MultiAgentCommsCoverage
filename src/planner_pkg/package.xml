@@ -71,6 +71,8 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>simple_mapf_sim</exec_depend>
+  
+  <depend>mapf_lib</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -7,6 +7,7 @@ project(planner_pkg)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
@@ -16,7 +17,10 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   simple_mapf_sim
+  mapf_lib
 )
+
+find_package(Boost 1.58 REQUIRED COMPONENTS program_options)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -107,7 +111,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+ INCLUDE_DIRS include
 #  LIBRARIES planner_pkg
 #  CATKIN_DEPENDS geometry_msgs message_generation nav_msgs roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
@@ -120,7 +124,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -196,18 +200,20 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
-add_executable(landing_planner src/landing_planner/planner_ros.cpp src/landing_planner/landing_planner.cpp)
-add_executable(coverage_planner src/coverage_planner/coverage_planner_node.cpp src/coverage_planner/coverage_planner.cpp)
+add_executable(planner_node src/planner_ros.cpp)
+# add_executable(coverage_planner src/coverage_planner/coverage_planner_node.cpp src/coverage_planner/coverage_planner.cpp)
 
-add_dependencies(landing_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(coverage_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(planner_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(coverage_planner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-target_link_libraries(landing_planner
+target_link_libraries(planner_node
     ${catkin_LIBRARIES}
+    ${Boost_LIBRARIES}
 )
-target_link_libraries(coverage_planner
-    ${catkin_LIBRARIES}
-)
+
+# target_link_libraries(coverage_planner
+    # ${catkin_LIBRARIES}
+# )
 
 #############
 ## Testing ##

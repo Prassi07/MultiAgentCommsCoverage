@@ -17,7 +17,7 @@ class Vehicle:
 
         self.num_nodes_left = comms_nodes_inventory
         
-    def go_to_goal(self, next_waypt):
+    def move_one_time_step(self, next_waypt):
         '''
         Returns angular velocity and velocity in z-axis towards desired direction
         '''

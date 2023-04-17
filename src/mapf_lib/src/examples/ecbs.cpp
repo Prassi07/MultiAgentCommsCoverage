@@ -244,9 +244,9 @@ struct hash<Location> {
 }  // namespace std
 
 ///
-class Environment {
+class ECBS_Environment {
  public:
-  Environment(size_t dimx, size_t dimy, std::unordered_set<Location> obstacles,
+  ECBS_Environment(size_t dimx, size_t dimy, std::unordered_set<Location> obstacles,
               std::vector<Location> goals, bool disappearAtGoal = false)
       : m_dimx(dimx),
         m_dimy(dimy),
@@ -261,8 +261,8 @@ class Environment {
   {
   }
 
-  Environment(const Environment&) = delete;
-  Environment& operator=(const Environment&) = delete;
+  ECBS_Environment(const ECBS_Environment&) = delete;
+  ECBS_Environment& operator=(const ECBS_Environment&) = delete;
 
   void setLowLevelContext(size_t agentIdx, const Constraints* constraints) {
     assert(constraints);  // NOLINT
@@ -595,8 +595,8 @@ int main(int argc, char* argv[]) {
     startStatesSet.insert(s);
   }
 
-  Environment mapf(dimx, dimy, obstacles, goals, disappearAtGoal);
-  ECBS<State, Action, int, Conflict, Constraints, Environment> ecbs(mapf, w);
+  ECBS_Environment mapf(dimx, dimy, obstacles, goals, disappearAtGoal);
+  ECBS<State, Action, int, Conflict, Constraints, ECBS_Environment> ecbs(mapf, w);
   std::vector<PlanResult<State, Action, int> > solution;
 
   Timer timer;
