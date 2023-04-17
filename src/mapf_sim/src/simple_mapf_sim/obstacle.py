@@ -28,11 +28,15 @@ class Obstacle(object):
 
         self.dt = dt
 
+        # Adjusting centers for displaying markers, has no effect on occupancy grid.
+        self.marker_x = self.x - ((self.length % 2)* 0.5)
+        self.marker_y = self.y - ((self.width % 2) * 0.5)
+        
         # coordinates of bottom left and top right points
         self.bl = (self.x - self.length / 2.0, self.y - self.width / 2.0)
         self.tr = (self.x + self.length / 2.0, self.y + self.width / 2.0)
 
-    def is_in_collision(self, x, y, z, size=1.0):
+    def is_in_collision(self, x, y, z, size=0.5):
         """
         Is the point provided inside the obstacle
         treats object as a cube with side length `size`

@@ -40,15 +40,12 @@ def get_color_robot(index):
     ros_color.b = ROBOT_COLORS[int(index % total_colors)][2]
     ros_color.a = 1.0
     return  ros_color
-
 class SimManager:
     def __init__(self):
 
         self.planner_path_topic = rospy.get_param("~planner_path")
         self.sim_env = self.env_setup()
         self.vehicle_traj_list = [[] for v in range(self.sim_env.vehicle_num)]
-        
-        self.dropped_nodes_list = []
         
         self.map_size = 100.0 # meters
         self.map_resolution = 1.0  # meters
@@ -276,9 +273,9 @@ class SimManager:
             vehicle_marker.scale.z = 1
 
 
-            vehicle_marker.pose.position.x = veh.x + 0.45
-            vehicle_marker.pose.position.y = veh.y + 0.45
-            vehicle_marker.pose.position.z = veh.z + 1
+            vehicle_marker.pose.position.x = veh.x + 0.5
+            vehicle_marker.pose.position.y = veh.y + 0.5
+            vehicle_marker.pose.position.z = veh.z + 0.5
 
             vehicle_marker.pose.orientation.x = 0
             vehicle_marker.pose.orientation.y = 0
@@ -339,8 +336,8 @@ class SimManager:
             obstacle_marker.type = Marker.CUBE
             obstacle_marker.action = Marker.ADD
             obstacle_marker.lifetime = rospy.Duration()
-            obstacle_marker.pose = Pose(Point(obstacle.x,
-                                              obstacle.y,
+            obstacle_marker.pose = Pose(Point(obstacle.marker_x,
+                                              obstacle.marker_y,
                                               2.5),
                                               Quaternion(0, 0, 0, 1))
 
@@ -403,8 +400,6 @@ class SimManager:
         waypt_sub = rospy.Subscriber(self.planner_path_topic, Plan, self.planner_callback)
         rate = rospy.Rate(1/self.sim_env.del_t)
         counter = 0
-        start_time = rospy.Time.now()
-        time_since_last_write = start_time
 
         collision_detected = False
         published_grid = False
