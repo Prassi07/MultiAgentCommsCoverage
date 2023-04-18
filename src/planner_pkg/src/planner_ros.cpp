@@ -34,7 +34,6 @@ void PlannerNode::Run(){
 
     while(ros::ok()){
         if(initialized_map && init_targets && compute_plan){
-            init_robots_pose = true;
             simple_mapf_sim::MultiRobotPlan full_plan;
             
             if (planner_type == 1){ // ECBS Planner
@@ -158,14 +157,15 @@ void PlannerNode::OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& 
 }
 
 void PlannerNode::OdometryHandler(const simple_mapf_sim::PoseStampedArray::ConstPtr& msg){
-    // ROS_INFO("Updating robot pose for planner");
     if(!init_robots_pose && initialized_map){
+        ROS_INFO("Updating robot poses for planner");
         startStates.clear();
         for(const auto &robot : msg->poses){
             int x = (robot.pose.position.x/map_resolution) - x_offset;
             int y = (robot.pose.position.y/map_resolution) - y_offset;
             startStates.emplace_back(State(0, x, y));
         }
+        init_robots_pose = true;
     }
 }
 

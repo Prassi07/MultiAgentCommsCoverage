@@ -412,6 +412,7 @@ class SimManager:
 
         waypt_sub = rospy.Subscriber(self.planner_path_topic, MultiRobotPlan, self.planner_callback)
         goals_reached_pub = rospy.Publisher('/sim/goals_reached', Bool, queue_size = 1)
+        plan_execution_pub = rospy.Publisher('/sim/executing_plans', Bool, queue_size = 1)
         rate = rospy.Rate(1/self.sim_env.del_t)
         counter = 0
 
@@ -453,7 +454,9 @@ class SimManager:
                 else:
                     goals_reached_pub.publish(Bool(False))
                     self.sim_env.update_states()
-
+                    
+            plan_execution_pub.publish(Bool(self.execution_in_progress))
+             
             if self.sim_env.is_in_collision():
                 collision_detected = True
 

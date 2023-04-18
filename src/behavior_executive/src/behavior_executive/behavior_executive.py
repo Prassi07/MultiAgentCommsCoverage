@@ -7,9 +7,9 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import Float32, Bool
 from planner_pkg.msg import PlannerType
-from simple_mapf_sim.msg import Plan, PoseStampedArray, CommsNodeArray, RobotArray, RobotInfo, CommsNodeMsg
+from simple_mapf_sim.msg import Plan, PoseStampedArray, CommsNodeArray, RobotArray, RobotInfo, CommsNodeMsg, MultiRobotPlan
 from jsk_rviz_plugins.msg import OverlayText
-
+from itertools import zip_longest
 # application
 from behavior_executive.sim_interface import SimInterface
 
@@ -18,6 +18,7 @@ class BehaviorStates(Enum):
     COMPUTE_ASSIGNMENTS = 1
     TRIGGER_PLANNER = 2
     WAIT_EXECUTION = 3
+    ALL_NODES_PLACED = 4
 
 class BehaviorExecutive(object):
     def __init__(self):
@@ -26,6 +27,8 @@ class BehaviorExecutive(object):
         self.reached_goal = False
         self.all_targets_inited = False
         self.plan_sent = False
+        self.executing_plan = False
+        self.plan_received = False
         
         self.got_start_states = False
         self.robots_info = []
@@ -55,29 +58,40 @@ class BehaviorExecutive(object):
         self.planner_compute_pub = rospy.Publisher("/planner/compute", PlannerType, queue_size=5)
         
         self.robot_info_sub = rospy.Subscriber("/sim/vehicle_poses", RobotArray, self.robots_info_callback)
-        self.execution_feedback = rospy.Subscriber("/sim/goals_reached", Bool, self.execution_feedback)
+        self.goal_reached_feedback = rospy.Subscriber("/sim/goals_reached", Bool, self.goal_reached_feedback)
+        self.execution_feedback = rospy.Subscriber("/sim/executing_plans", Bool, self.execution_feedback)
+        self.planner_feedback = rospy.Subscriber("/planner/paths", MultiRobotPlan, self.planner_feedback)
         self.full_target_list = rospy.Subscriber("/set_coverage/targets", CommsNodeArray, self.all_targets_callback)
         self.vehicle_in_collision_sub = rospy.Subscriber('/sim/collision_detected', Bool, self.collision_feedback)
         
 
     def all_targets_callback(self, msg):
         # self.all_targets = msg.nodes
-        self.all_targets.append(CommsNodeMsg(x = 10, y = 10, id = 0))
-        self.all_targets.append(CommsNodeMsg(x = -10, y = -10, id = 0))
-        self.all_targets.append(CommsNodeMsg(x = -10, y = 10, id = 0))
-        self.all_targets.append(CommsNodeMsg(x = 10, y = -10, id = 0))
+        self.all_targets.append(CommsNodeMsg(x = 10, y = 0, id = 0))
+        self.all_targets.append(CommsNodeMsg(x = 0, y = -10, id = 1))
+        self.all_targets.append(CommsNodeMsg(x = 10, y = 10, id = 2))
+        self.all_targets.append(CommsNodeMsg(x = -10, y = -10, id = 3))
+        self.all_targets.append(CommsNodeMsg(x = -10, y = 10, id = 4))
+        self.all_targets.append(CommsNodeMsg(x = 10, y = -10, id = 5))
+        self.all_targets.append(CommsNodeMsg(x = -10, y = 0, id = 6))
+        self.all_targets.append(CommsNodeMsg(x = 0, y = 10, id = 7))
         self.all_targets_inited = True
 
     def collision_feedback(self, msg):
         self.collision = msg.data
 
     def robots_info_callback(self, msg):
-        if self.reached_goal:
-            self.robots_info = msg.robots
-            self.got_start_states = True
-            
-    def execution_feedback(self, msg):
+        self.robots_info = msg.robots
+        self.got_start_states = True
+    
+    def goal_reached_feedback(self, msg):
         self.reached_goal = msg.data
+        
+    def planner_feedback(self, msg):
+        self.plan_received = True
+        
+    def execution_feedback(self, msg):
+        self.executing_plan = msg.data
 
     def update_viz(self):
         covered, remaining_covered = self.sim_interface.get_coverage()
@@ -105,21 +119,44 @@ class BehaviorExecutive(object):
             for node in self.all_targets:
                 if node not in self.sent_targets:
                     valid_nodes_list.append(node)
+            
+            if len(valid_nodes_list) == 0:
+                return False
+
+            for idx, robot in enumerate(self.robots_info):
+                
+                if robot.num_nodes_left > 0:
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
                     
-            for robot, node in zip(valid_robots_list, self.all_targets):
-                r = PoseStamped()
-                r.pose.position.x = robot.pose.position.x
-                r.pose.position.y = robot.pose.position.y
-                r.pose.position.z = robot.pose.position.z
-                
-                self.start_states.poses.append(r)
-                
-                n = CommsNodeMsg()
-                n.x = node.x
-                n.y = node.y
-                
-                self.goal_locations.nodes.append(n)
-                self.sent_targets.append(node)
+                    self.start_states.poses.append(r)
+                    if(idx < len(valid_nodes_list)):
+                        n = CommsNodeMsg()
+                        n.x = valid_nodes_list[idx].x
+                        n.y = valid_nodes_list[idx].y
+                        
+                        self.goal_locations.nodes.append(n)
+                        self.sent_targets.append(valid_nodes_list[idx])
+                    else:
+                        n = CommsNodeMsg()
+                        n.x = robot.pose.position.x
+                        n.y = robot.pose.position.y
+                        
+                        self.goal_locations.nodes.append(n)
+                else:
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
+                    
+                    self.start_states.poses.append(r)
+                    n = CommsNodeMsg()
+                    n.x = robot.pose.position.x
+                    n.y = robot.pose.position.y
+                    
+                    self.goal_locations.nodes.append(n)
             
             return True
         
@@ -127,29 +164,41 @@ class BehaviorExecutive(object):
             return False
 
     def trigger_planner(self):
-        self.planner_starts_pub.publish(self.start_states)
-        self.planner_targets_pub.publish(self.goal_locations)
-        self.planner_compute_pub.publish(self.compute_plan_msg)
+        if not self.plan_sent:
+            self.planner_starts_pub.publish(self.start_states)
+            self.planner_targets_pub.publish(self.goal_locations)
+            self.planner_compute_pub.publish(self.compute_plan_msg)
+            self.plan_sent = True
 
     def run(self):
-        
+
         if self.state == BehaviorStates.INIT:
             if (self.reached_goal) and (self.all_targets_inited) and (self.got_start_states):
                 self.state = BehaviorStates.COMPUTE_ASSIGNMENTS
-                self.text = "Computing Assignments"
+                self.text = "Received Inputs"
         elif self.state == BehaviorStates.COMPUTE_ASSIGNMENTS:
             ret = self.compute_assignments()
             if ret:
                 self.state = BehaviorStates.TRIGGER_PLANNER
-                self.text = "Triggering Planner"
+                self.text = "Computing Assignments"
+            else:
+                self.state = BehaviorStates.ALL_NODES_PLACED
         elif self.state == BehaviorStates.TRIGGER_PLANNER:
-            self.trigger_planner()
-            self.plan_sent = True    
-            self.state = BehaviorStates.WAIT_EXECUTION
-            self.text = "Executing Plans"
+            if not self.plan_sent:
+                self.trigger_planner()
+                self.plan_received = False
+                self.plan_sent = True    
+                self.text = "Triggering Planner"
+            else:
+                if self.executing_plan and self.plan_received:
+                    self.state = BehaviorStates.WAIT_EXECUTION
+                    self.text = "Executing Plans"
         elif self.state == BehaviorStates.WAIT_EXECUTION:
-            if (self.plan_sent) and (self.reached_goal):
+            if (self.plan_received) and (self.reached_goal) and (not self.executing_plan):
                 self.state = BehaviorStates.INIT 
+                self.plan_sent = False
                 self.text = "Goals Reached, restarting.."
-                           
+        elif self.state == BehaviorStates.ALL_NODES_PLACED:
+            self.text = "All Nodes Placed Successfully"
+            
         self.update_viz()

@@ -16,7 +16,7 @@ basestation_y: 0
 basestation_z: 0
 
 # Robot parameters
-vehicle_num: 1
+vehicle_num: 4
 nodes_per_robot: 10.0
 
 # Sim Parameters
