@@ -20,6 +20,7 @@
 
 #include "ecbs_planner.h"
 #include "planner_commons.h"
+#include "ecbs_ta_planner.h"
 
 #include "simple_mapf_sim/PoseStampedArray.h"
 #include "simple_mapf_sim/CommsNodeArray.h"
@@ -75,11 +76,13 @@ class PlannerNode{
         float map_resolution, x_offset, y_offset;
         std::unordered_set<Location> obstacles;
         std::vector<Location> goals;
+        std::unordered_set<Location> goals_set;
+        std::vector<std::unordered_set<Location>> potential_goals;
         std::vector<State> startStates;
         std::vector<int8_t, std::allocator<int8_t>> map;
         float w; //ECBS Relaxation
 
-        
+
         //Helper Methods
         inline int getMapIndex(int x, int y);
 };

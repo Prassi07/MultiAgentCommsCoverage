@@ -86,10 +86,10 @@ statistical purposes.
 statistical purposes.
 */
 template <typename State, typename Action, typename Cost, typename Conflict,
-          typename Constraints, typename Task, typename Environment>
+          typename Constraints, typename Task, typename ECBSTA_Environment>
 class ECBSTA {
  public:
-  ECBSTA(Environment& environment, float w) : m_env(environment), m_w(w) {}
+  ECBSTA(ECBSTA_Environment& environment, float w) : m_env(environment), m_w(w) {}
 
   bool search(const std::vector<State>& initialStates,
               std::vector<PlanResult<State, Action, Cost> >& solution) {
@@ -440,7 +440,7 @@ class ECBSTA {
 
   struct LowLevelEnvironment {
     LowLevelEnvironment(
-        Environment& env, size_t agentIdx, const Constraints& constraints,
+        ECBSTA_Environment& env, size_t agentIdx, const Constraints& constraints,
         const Task* task,
         const std::vector<PlanResult<State, Action, Cost> >& solution)
         : m_env(env)
@@ -486,14 +486,14 @@ class ECBSTA {
     }
 
    private:
-    Environment& m_env;
+    ECBSTA_Environment& m_env;
     // size_t m_agentIdx;
     // const Constraints& m_constraints;
     const std::vector<PlanResult<State, Action, Cost> >& m_solution;
   };
 
  private:
-  Environment& m_env;
+  ECBSTA_Environment& m_env;
   float m_w;
   typedef AStarEpsilon<State, Action, Cost, LowLevelEnvironment>
       LowLevelSearch_t;

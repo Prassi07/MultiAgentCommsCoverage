@@ -1,254 +1,152 @@
-#include <fstream>
-#include <iostream>
+#ifndef _ECBS_TA_PLANNER_H_
+#define _ECBS_TA_PLANNER_H_
 
+#include <iostream>
+#include "planner_commons.h"
+#include "mapf_lib/ecbs_ta.hpp"
+#include "mapf_lib/next_best_assignment.hpp"
 #include <boost/functional/hash.hpp>
 #include <boost/program_options.hpp>
 
-#include <yaml-cpp/yaml.h>
-
-#include "mapf_lib/ecbs_ta.hpp"
-#include "mapf_lib/next_best_assignment.hpp"
-#include "timer.hpp"
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/exterior_property.hpp>
+#include <boost/graph/floyd_warshall_shortest.hpp>
+#include <boost/graph/graphviz.hpp>
 
 using mapf_lib::ECBSTA;
 using mapf_lib::Neighbor;
 using mapf_lib::PlanResult;
 using mapf_lib::NextBestAssignment;
 
-struct State {
-  State(int time, int x, int y) : time(time), x(x), y(y) {}
+class ShortestPathHeuristic{
+ public:
+  ShortestPathHeuristic(size_t dimx, size_t dimy,
+                        const std::unordered_set<Location>& obstacles)
+      : m_shortestDistance(nullptr), m_dimx(dimx), m_dimy(dimy) {
+    searchGraph_t searchGraph;
 
-  bool operator==(const State& s) const {
-    return time == s.time && x == s.x && y == s.y;
+    // add vertices
+    for (size_t x = 0; x < dimx; ++x) {
+      for (size_t y = 0; y < dimy; ++y) {
+        boost::add_vertex(searchGraph);
+      }
+    }
+
+    // add edges
+    for (size_t x = 0; x < dimx; ++x) {
+      for (size_t y = 0; y < dimy; ++y) {
+        Location l(x, y);
+        if (obstacles.find(l) == obstacles.end()) {
+          Location right(x + 1, y);
+          if (x < dimx - 1 && obstacles.find(right) == obstacles.end()) {
+            auto e =
+                boost::add_edge(locToVert(l), locToVert(right), searchGraph);
+            searchGraph[e.first].weight = 1;
+          }
+          Location below(x, y + 1);
+          if (y < dimy - 1 && obstacles.find(below) == obstacles.end()) {
+            auto e =
+                boost::add_edge(locToVert(l), locToVert(below), searchGraph);
+            searchGraph[e.first].weight = 1;
+          }
+        }
+      }
+    }
+
+    writeDotFile(searchGraph, "searchGraph.dot");
+
+    m_shortestDistance = new distanceMatrix_t(boost::num_vertices(searchGraph));
+    distanceMatrixMap_t distanceMap(*m_shortestDistance, searchGraph);
+    // The following generates a clang-tidy error, see
+    // https://svn.boost.org/trac10/ticket/10830
+    boost::floyd_warshall_all_pairs_shortest_paths(
+        searchGraph, distanceMap,
+        boost::weight_map(boost::get(&Edge::weight, searchGraph)));
   }
 
-  bool equalExceptTime(const State& s) const { return x == s.x && y == s.y; }
+  ~ShortestPathHeuristic() { delete m_shortestDistance; }
 
-  friend std::ostream& operator<<(std::ostream& os, const State& s) {
-    return os << s.time << ": (" << s.x << "," << s.y << ")";
-    // return os << "(" << s.x << "," << s.y << ")";
+  int getValue(const Location& a, const Location& b) {
+    vertex_t idx1 = locToVert(a);
+    vertex_t idx2 = locToVert(b);
+    return (*m_shortestDistance)[idx1][idx2];
   }
 
-  int time;
-  int x;
-  int y;
-};
+  private:
+    size_t locToVert(const Location& l) const { return l.x + m_dimx * l.y; }
 
-namespace std {
-template <>
-struct hash<State> {
-  size_t operator()(const State& s) const {
-    size_t seed = 0;
-    boost::hash_combine(seed, s.time);
-    boost::hash_combine(seed, s.x);
-    boost::hash_combine(seed, s.y);
-    return seed;
-  }
-};
-}  // namespace std
+    Location idxToLoc(size_t idx) {
+      int x = idx % m_dimx;
+      int y = idx / m_dimx;
+      return Location(x, y);
+    }
 
-///
-enum class Action {
-  Up,
-  Down,
-  Left,
-  Right,
-  Wait,
-};
+  private:
+  typedef boost::adjacency_list_traits<boost::vecS, boost::vecS,
+                                       boost::undirectedS>
+      searchGraphTraits_t;
+  typedef searchGraphTraits_t::vertex_descriptor vertex_t;
+  typedef searchGraphTraits_t::edge_descriptor edge_t;
 
-std::ostream& operator<<(std::ostream& os, const Action& a) {
-  switch (a) {
-    case Action::Up:
-      os << "Up";
-      break;
-    case Action::Down:
-      os << "Down";
-      break;
-    case Action::Left:
-      os << "Left";
-      break;
-    case Action::Right:
-      os << "Right";
-      break;
-    case Action::Wait:
-      os << "Wait";
-      break;
-  }
-  return os;
-}
+  struct Vertex {};
 
-///
-
-struct Conflict {
-  enum Type {
-    Vertex,
-    Edge,
+  struct Edge {
+    int weight;
   };
 
-  int time;
-  size_t agent1;
-  size_t agent2;
-  Type type;
+  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
+                                Vertex, Edge>
+      searchGraph_t;
+  typedef boost::exterior_vertex_property<searchGraph_t, int>
+      distanceProperty_t;
+  typedef distanceProperty_t::matrix_type distanceMatrix_t;
+  typedef distanceProperty_t::matrix_map_type distanceMatrixMap_t;
 
-  int x1;
-  int y1;
-  int x2;
-  int y2;
+  class VertexDotWriter {
+   public:
+    explicit VertexDotWriter(const searchGraph_t& graph, size_t dimx)
+        : m_graph(graph), m_dimx(dimx) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const Conflict& c) {
-    switch (c.type) {
-      case Vertex:
-        return os << c.time << ": Vertex(" << c.x1 << "," << c.y1 << ")";
-      case Edge:
-        return os << c.time << ": Edge(" << c.x1 << "," << c.y1 << "," << c.x2
-                  << "," << c.y2 << ")";
+    void operator()(std::ostream& out, const vertex_t& v) const {
+      static const float DX = 100;
+      static const float DY = 100;
+      out << "[label=\"";
+      int x = v % m_dimx;
+      int y = v / m_dimx;
+      out << "\" pos=\"" << x * DX << "," << y * DY << "!\"]";
     }
-    return os;
-  }
-};
 
-struct VertexConstraint {
-  VertexConstraint(int time, int x, int y) : time(time), x(x), y(y) {}
-  int time;
-  int x;
-  int y;
+    private:
+      const searchGraph_t& m_graph;
+      size_t m_dimx;
+  };
 
-  bool operator<(const VertexConstraint& other) const {
-    return std::tie(time, x, y) < std::tie(other.time, other.x, other.y);
-  }
+  class EdgeDotWriter {
+   public:
+    explicit EdgeDotWriter(const searchGraph_t& graph) : m_graph(graph) {}
 
-  bool operator==(const VertexConstraint& other) const {
-    return std::tie(time, x, y) == std::tie(other.time, other.x, other.y);
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const VertexConstraint& c) {
-    return os << "VC(" << c.time << "," << c.x << "," << c.y << ")";
-  }
-};
-
-namespace std {
-template <>
-struct hash<VertexConstraint> {
-  size_t operator()(const VertexConstraint& s) const {
-    size_t seed = 0;
-    boost::hash_combine(seed, s.time);
-    boost::hash_combine(seed, s.x);
-    boost::hash_combine(seed, s.y);
-    return seed;
-  }
-};
-}  // namespace std
-
-struct EdgeConstraint {
-  EdgeConstraint(int time, int x1, int y1, int x2, int y2)
-      : time(time), x1(x1), y1(y1), x2(x2), y2(y2) {}
-  int time;
-  int x1;
-  int y1;
-  int x2;
-  int y2;
-
-  bool operator<(const EdgeConstraint& other) const {
-    return std::tie(time, x1, y1, x2, y2) <
-           std::tie(other.time, other.x1, other.y1, other.x2, other.y2);
-  }
-
-  bool operator==(const EdgeConstraint& other) const {
-    return std::tie(time, x1, y1, x2, y2) ==
-           std::tie(other.time, other.x1, other.y1, other.x2, other.y2);
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const EdgeConstraint& c) {
-    return os << "EC(" << c.time << "," << c.x1 << "," << c.y1 << "," << c.x2
-              << "," << c.y2 << ")";
-  }
-};
-
-namespace std {
-template <>
-struct hash<EdgeConstraint> {
-  size_t operator()(const EdgeConstraint& s) const {
-    size_t seed = 0;
-    boost::hash_combine(seed, s.time);
-    boost::hash_combine(seed, s.x1);
-    boost::hash_combine(seed, s.y1);
-    boost::hash_combine(seed, s.x2);
-    boost::hash_combine(seed, s.y2);
-    return seed;
-  }
-};
-}  // namespace std
-
-struct Constraints {
-  std::unordered_set<VertexConstraint> vertexConstraints;
-  std::unordered_set<EdgeConstraint> edgeConstraints;
-
-  void add(const Constraints& other) {
-    vertexConstraints.insert(other.vertexConstraints.begin(),
-                             other.vertexConstraints.end());
-    edgeConstraints.insert(other.edgeConstraints.begin(),
-                           other.edgeConstraints.end());
-  }
-
-  bool overlap(const Constraints& other) const {
-    for (const auto& vc : vertexConstraints) {
-      if (other.vertexConstraints.count(vc) > 0) {
-        return true;
-      }
+    void operator()(std::ostream& out, const edge_t& e) const {
+      out << "[label=\"" << m_graph[e].weight << "\"]";
     }
-    for (const auto& ec : edgeConstraints) {
-      if (other.edgeConstraints.count(ec) > 0) {
-        return true;
-      }
-    }
-    return false;
-  }
 
-  friend std::ostream& operator<<(std::ostream& os, const Constraints& c) {
-    for (const auto& vc : c.vertexConstraints) {
-      os << vc << std::endl;
+   private:
+    const searchGraph_t& m_graph;
+  };
+
+  private:
+    void writeDotFile(const searchGraph_t& graph, const std::string& fileName) {
+      VertexDotWriter vw(graph, m_dimx);
+      EdgeDotWriter ew(graph);
+      std::ofstream dotFile(fileName);
+      boost::write_graphviz(dotFile, graph, vw, ew);
     }
-    for (const auto& ec : c.edgeConstraints) {
-      os << ec << std::endl;
-    }
-    return os;
-  }
+
+  private:
+    distanceMatrix_t* m_shortestDistance;
+    size_t m_dimx;
+    size_t m_dimy;
 };
 
-struct Location {
-  Location() = default;
-  Location(int x, int y) : x(x), y(y) {}
-  int x;
-  int y;
-
-  bool operator<(const Location& other) const {
-    return std::tie(x, y) < std::tie(other.x, other.y);
-  }
-
-  bool operator==(const Location& other) const {
-    return std::tie(x, y) == std::tie(other.x, other.y);
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Location& c) {
-    return os << "(" << c.x << "," << c.y << ")";
-  }
-};
-
-namespace std {
-template <>
-struct hash<Location> {
-  size_t operator()(const Location& s) const {
-    size_t seed = 0;
-    boost::hash_combine(seed, s.x);
-    boost::hash_combine(seed, s.y);
-    return seed;
-  }
-};
-}  // namespace std
-
-#include "shortest_path_heuristic.hpp"
-
-///
 class ECBSTA_Environment {
  public:
   ECBSTA_Environment(size_t dimx, size_t dimy,
@@ -584,122 +482,5 @@ class ECBSTA_Environment {
   std::unordered_set<Location> m_goals;
 };
 
-int main(int argc, char* argv[]) {
-  namespace po = boost::program_options;
-  // Declare the supported options.
-  po::options_description desc("Allowed options");
-  std::string inputFile;
-  std::string outputFile;
-  float w;
-  size_t maxTaskAssignments;
-  desc.add_options()("help", "produce help message")(
-      "input,i", po::value<std::string>(&inputFile)->required(),
-      "input file (YAML)")("output,o",
-                           po::value<std::string>(&outputFile)->required(),
-                           "output file (YAML)")(
-      "suboptimality,w", po::value<float>(&w)->default_value(1.0),
-      "suboptimality bound")(
-      "maxTaskAssignments",
-      po::value<size_t>(&maxTaskAssignments)->default_value(1e9),
-      "maximum number of task assignments to try");
 
-  try {
-    po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);
-
-    if (vm.count("help") != 0u) {
-      std::cout << desc << "\n";
-      return 0;
-    }
-  } catch (po::error& e) {
-    std::cerr << e.what() << std::endl << std::endl;
-    std::cerr << desc << std::endl;
-    return 1;
-  }
-
-  YAML::Node config = YAML::LoadFile(inputFile);
-
-  std::unordered_set<Location> obstacles;
-  std::vector<std::unordered_set<Location> > goals;
-  std::vector<State> startStates;
-
-  const auto& dim = config["map"]["dimensions"];
-  int dimx = dim[0].as<int>();
-  int dimy = dim[1].as<int>();
-
-  for (const auto& node : config["map"]["obstacles"]) {
-    obstacles.insert(Location(node[0].as<int>(), node[1].as<int>()));
-  }
-
-  for (const auto& node : config["agents"]) {
-    const auto& start = node["start"];
-    startStates.emplace_back(State(0, start[0].as<int>(), start[1].as<int>()));
-    goals.resize(goals.size() + 1);
-    for (const auto& goal : node["potentialGoals"]) {
-      goals.back().emplace(Location(goal[0].as<int>(), goal[1].as<int>()));
-    }
-  }
-
-  // sanity check: no identical start states
-  std::unordered_set<State> startStatesSet;
-  for (const auto& s : startStates) {
-    if (startStatesSet.find(s) != startStatesSet.end()) {
-      std::cout << "Identical start states detected -> no solution!" << std::endl;
-      return 0;
-    }
-    startStatesSet.insert(s);
-  }
-
-  ECBSTA_Environment mapf(dimx, dimy, obstacles, startStates, goals,
-                   maxTaskAssignments);
-  ECBSTA<State, Action, int, Conflict, Constraints, Location,
-         ECBSTA_Environment>
-      cbs(mapf, w);
-  std::vector<PlanResult<State, Action, int> > solution;
-
-  Timer timer;
-  bool success = cbs.search(startStates, solution);
-  timer.stop();
-
-  if (success) {
-    std::cout << "Planning successful! " << std::endl;
-    int64_t cost = 0;
-    int64_t makespan = 0;
-    for (const auto& s : solution) {
-      cost += s.cost;
-      makespan = std::max<int64_t>(makespan, s.cost);
-    }
-
-    std::ofstream out(outputFile);
-    out << "statistics:" << std::endl;
-    out << "  cost: " << cost << std::endl;
-    out << "  makespan: " << makespan << std::endl;
-    out << "  runtime: " << timer.elapsedSeconds() << std::endl;
-    out << "  highLevelExpanded: " << mapf.highLevelExpanded() << std::endl;
-    out << "  lowLevelExpanded: " << mapf.lowLevelExpanded() << std::endl;
-    out << "  numTaskAssignments: " << mapf.numTaskAssignments() << std::endl;
-    out << "schedule:" << std::endl;
-    for (size_t a = 0; a < solution.size(); ++a) {
-      // std::cout << "Solution for: " << a << std::endl;
-      // for (size_t i = 0; i < solution[a].actions.size(); ++i) {
-      //   std::cout << solution[a].states[i].second << ": " <<
-      //   solution[a].states[i].first << "->" << solution[a].actions[i].first
-      //   << "(cost: " << solution[a].actions[i].second << ")" << std::endl;
-      // }
-      // std::cout << solution[a].states.back().second << ": " <<
-      // solution[a].states.back().first << std::endl;
-
-      out << "  agent" << a << ":" << std::endl;
-      for (const auto& state : solution[a].states) {
-        out << "    - x: " << state.first.x << std::endl
-            << "      y: " << state.first.y << std::endl
-            << "      t: " << state.second << std::endl;
-      }
-    }
-  } else {
-    std::cout << "Planning NOT successful!" << std::endl;
-  }
-
-  return 0;
-}
+#endif

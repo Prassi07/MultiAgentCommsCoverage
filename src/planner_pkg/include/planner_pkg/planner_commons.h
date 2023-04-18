@@ -207,6 +207,7 @@ struct Constraints {
 };
 
 struct Location {
+  Location() = default;
   Location(int x, int y) : x(x), y(y) {}
   int x;
   int y;
