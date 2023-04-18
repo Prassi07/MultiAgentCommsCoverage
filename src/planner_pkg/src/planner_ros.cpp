@@ -137,7 +137,8 @@ void PlannerNode::OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& 
     if(!init_targets && initialized_map){
         goals.clear();
         potential_goals.clear();
-
+        goals_set.clear();
+        
         int robots = 0;
         for(const auto& node : msg->nodes){
             int x = (node.x/map_resolution) - x_offset;

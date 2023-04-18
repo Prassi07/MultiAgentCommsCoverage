@@ -82,4 +82,7 @@ class Environment:
             robot.move_one_time_step()
 
     def drop_comms_nodes(self, x, y):
+        for node in self.comms_nodes:
+            if node.x == x and node.y == y:
+                return 
         self.comms_nodes.append(CommsNode(len(self.comms_nodes) + 1, x, y))

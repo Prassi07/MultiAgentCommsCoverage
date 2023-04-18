@@ -18,7 +18,8 @@ class BehaviorStates(Enum):
     COMPUTE_ASSIGNMENTS = 1
     TRIGGER_PLANNER = 2
     WAIT_EXECUTION = 3
-    ALL_NODES_PLACED = 4
+    COLLECTING_NODE_INFO = 4
+    ALL_NODES_PLACED = 5
 
 class BehaviorExecutive(object):
     def __init__(self):
@@ -40,6 +41,7 @@ class BehaviorExecutive(object):
         self.state = BehaviorStates.INIT
         self.text = "Initializing..."
         
+        self.state_counter = 0
         self.start_states = PoseStampedArray()
         self.goal_locations = CommsNodeArray()
          
@@ -63,7 +65,7 @@ class BehaviorExecutive(object):
         self.planner_feedback = rospy.Subscriber("/planner/paths", MultiRobotPlan, self.planner_feedback)
         self.full_target_list = rospy.Subscriber("/set_coverage/targets", CommsNodeArray, self.all_targets_callback)
         self.vehicle_in_collision_sub = rospy.Subscriber('/sim/collision_detected', Bool, self.collision_feedback)
-        
+        self.comms_node_sub =  rospy.Subscriber('/sim/comms_nodes', CommsNodeArray, self.comms_node_callback)
 
     def all_targets_callback(self, msg):
         # self.all_targets = msg.nodes
@@ -93,6 +95,22 @@ class BehaviorExecutive(object):
     def execution_feedback(self, msg):
         self.executing_plan = msg.data
 
+    def comms_node_callback(self, msg):
+        if(self.state == BehaviorStates.COLLECTING_NODE_INFO and self.state_counter > 5):
+            new_targets = []
+            
+            for node1 in self.all_targets:
+                found = False
+                for node2 in msg.nodes:
+                    if node1.x == node2.x and node1.y == node2.y:
+                        found = True
+                        break
+                if not found:
+                    new_targets.append(node1)
+            
+            self.all_targets = new_targets                
+            self.updatedTargetList = True
+        
     def update_viz(self):
         covered, remaining_covered = self.sim_interface.get_coverage()
         total_voxels = covered + remaining_covered
@@ -105,24 +123,28 @@ class BehaviorExecutive(object):
 
     def compute_assignments(self):
         
-        if self.assignment_type == 1 or self.assignment_type == 2:
-            
-            valid_robots_list = []
-            for robot in self.robots_info:
-                if robot.num_nodes_left > 0:
-                    valid_robots_list.append(robot)
+        valid_robots_list = []
+        for robot in self.robots_info:
+            if robot.num_nodes_left > 0:
+                valid_robots_list.append(robot)
 
-            self.start_states.poses.clear()
-            self.goal_locations.nodes.clear()
+        self.start_states.poses.clear()
+        self.goal_locations.nodes.clear()
+        
+        # valid_nodes_list = []
+        # for node in self.all_targets:
+        #     if node not in self.sent_targets:
+        #         valid_nodes_list.append(node)
+                
+        # print(self.all_targets)
+        
+        if len(self.all_targets) == 0:
+            return False
             
-            valid_nodes_list = []
-            for node in self.all_targets:
-                if node not in self.sent_targets:
-                    valid_nodes_list.append(node)
+        if self.assignment_type == 1:
             
-            if len(valid_nodes_list) == 0:
-                return False
-
+            self.updatedTargetList = False
+            
             for idx, robot in enumerate(self.robots_info):
                 
                 if robot.num_nodes_left > 0:
@@ -132,13 +154,12 @@ class BehaviorExecutive(object):
                     r.pose.position.z = robot.pose.position.z
                     
                     self.start_states.poses.append(r)
-                    if(idx < len(valid_nodes_list)):
+                    if(idx < len(self.all_targets)):
                         n = CommsNodeMsg()
-                        n.x = valid_nodes_list[idx].x
-                        n.y = valid_nodes_list[idx].y
+                        n.x = self.all_targets[idx].x
+                        n.y = self.all_targets[idx].y
                         
                         self.goal_locations.nodes.append(n)
-                        self.sent_targets.append(valid_nodes_list[idx])
                     else:
                         n = CommsNodeMsg()
                         n.x = robot.pose.position.x
@@ -159,7 +180,51 @@ class BehaviorExecutive(object):
                     self.goal_locations.nodes.append(n)
             
             return True
-        
+        elif self.assignment_type == 2:
+            
+            self.updatedTargetList = False
+            
+            for node in self.all_targets:
+                n = CommsNodeMsg()
+                n.x = node.x
+                n.y = node.y
+                
+                self.goal_locations.nodes.append(n)
+                
+            for idx, robot in enumerate(self.robots_info):
+                
+                if robot.num_nodes_left > 0:
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
+                    
+                    self.start_states.poses.append(r)
+                    if(idx < len(self.all_targets)):
+                        # print("Here")
+                        pass
+                    else:
+                        n = CommsNodeMsg()
+                        # print("Here2")
+                        n.x = robot.pose.position.x
+                        n.y = robot.pose.position.y
+                        
+                        self.goal_locations.nodes.append(n)
+                else:
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
+                    
+                    self.start_states.poses.append(r)
+                    n = CommsNodeMsg()
+                    n.x = robot.pose.position.x
+                    n.y = robot.pose.position.y
+                    
+                    self.goal_locations.nodes.append(n)
+            
+            
+            return True
         elif self.assignment_type == 3:
             return False
 
@@ -195,9 +260,16 @@ class BehaviorExecutive(object):
                     self.text = "Executing Plans"
         elif self.state == BehaviorStates.WAIT_EXECUTION:
             if (self.plan_received) and (self.reached_goal) and (not self.executing_plan):
-                self.state = BehaviorStates.INIT 
+                self.state = BehaviorStates.COLLECTING_NODE_INFO 
                 self.plan_sent = False
-                self.text = "Goals Reached, restarting.."
+                self.text = "Goals Reached, Updating Node list"
+        elif self.state == BehaviorStates.COLLECTING_NODE_INFO:
+            self.state_counter += 1
+            if (self.updatedTargetList):
+                self.state = BehaviorStates.INIT
+                self.updatedTargetList = False
+                self.text = "Updated Node List"
+                self.state_counter = 0
         elif self.state == BehaviorStates.ALL_NODES_PLACED:
             self.text = "All Nodes Placed Successfully"
             
