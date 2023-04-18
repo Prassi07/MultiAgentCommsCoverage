@@ -69,15 +69,7 @@ class BehaviorExecutive(object):
         self.comms_node_sub =  rospy.Subscriber('/sim/comms_nodes', CommsNodeArray, self.comms_node_callback)
 
     def all_targets_callback(self, msg):
-        # self.all_targets = msg.nodes
-        self.all_targets.append(CommsNodeMsg(x = 10, y = 0, id = 0))
-        self.all_targets.append(CommsNodeMsg(x = 0, y = -10, id = 1))
-        self.all_targets.append(CommsNodeMsg(x = 10, y = 10, id = 2))
-        self.all_targets.append(CommsNodeMsg(x = -10, y = -10, id = 3))
-        self.all_targets.append(CommsNodeMsg(x = -10, y = 10, id = 4))
-        self.all_targets.append(CommsNodeMsg(x = 10, y = -10, id = 5))
-        self.all_targets.append(CommsNodeMsg(x = -10, y = 0, id = 6))
-        self.all_targets.append(CommsNodeMsg(x = 0, y = 10, id = 7))
+        self.all_targets = msg.nodes
         self.all_targets_inited = True
 
     def collision_feedback(self, msg):

@@ -45,7 +45,6 @@ def get_color_robot(index):
 class SimManager:
     def __init__(self):
 
-        self.planner_path_topic = rospy.get_param("~planner_path")
         self.sim_env = self.env_setup()
         self.vehicle_traj_list = [[] for v in range(self.sim_env.vehicle_num)]
         
@@ -410,7 +409,7 @@ class SimManager:
         vehicle_trajectory_pub = rospy.Publisher('/sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
         obstacle_marker_pub = rospy.Publisher('/sim/markers/obstacles', MarkerArray, queue_size=10, latch=True)
 
-        waypt_sub = rospy.Subscriber(self.planner_path_topic, MultiRobotPlan, self.planner_callback)
+        waypt_sub = rospy.Subscriber('/planner/paths', MultiRobotPlan, self.planner_callback)
         goals_reached_pub = rospy.Publisher('/sim/goals_reached', Bool, queue_size = 1)
         plan_execution_pub = rospy.Publisher('/sim/executing_plans', Bool, queue_size = 1)
         rate = rospy.Rate(1/self.sim_env.del_t)

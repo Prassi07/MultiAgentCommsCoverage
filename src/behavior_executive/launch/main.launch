@@ -1,12 +1,21 @@
 <launch>
+      
+      <arg name="config"  default="sim.yaml" />
+      <arg name="planner" default="1.0"/>
+      <arg name="w" default="1.1"/>
+      <arg name="num_robots" default="4" />
 
-      <include file="$(find simple_mapf_sim)/launch/sim.launch" />
+      <include file="$(find simple_mapf_sim)/launch/sim.launch"  pass_all_args="true" />
 
       <node name="ecbs_planner" pkg="planner_pkg" type="planner_node" output="screen" respawn="false" />
 
       <node name="behavior_executive_node" pkg="behavior_executive" type="behavior_executive_node.py" output="screen" respawn="false">
-            <param name="assignment_type" value="1.0" />
-            <param name="planner_w" value="1.1" />
+            <param name="assignment_type" value="$(arg planner)" />
+            <param name="planner_w" value="$(arg w)" />
+      </node>
+
+      <node name="coverage_node" pkg="behavior_executive" type="dummy_coverage.py" output="screen" respawn="false">
+            <param name="sim_file" value="$(arg config)" />
       </node>
       
 </launch>
