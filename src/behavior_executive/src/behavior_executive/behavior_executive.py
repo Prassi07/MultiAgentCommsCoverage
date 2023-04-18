@@ -45,10 +45,11 @@ class BehaviorExecutive(object):
         self.start_states = PoseStampedArray()
         self.goal_locations = CommsNodeArray()
          
-        self.assignment_type = rospy.get_param("~assignment_type") # 1 - ECBS with sequential, 2 - ECBSTA, 3 - CBS - explicit TA based on distance
+        self.assignment_type = int(rospy.get_param("~assignment_type")) # 1 - ECBS with sequential, 2 - ECBSTA, 3 - CBS - explicit TA based on distance
         self.suboptimal_w = rospy.get_param("~planner_w")
         
-        self.compute_plan_msg = PlannerType(planner_type = int(self.assignment_type), suboptimality_bound = self.suboptimal_w)
+        self.planner_assign_map = {1: 1, 2: 2, 3: 1}
+        self.compute_plan_msg = PlannerType(planner_type = self.planner_assign_map[self.assignment_type], suboptimality_bound = self.suboptimal_w)
         
         self._covered_pub = rospy.Publisher( "/executive/covered_voxels", Float32, queue_size=5)
         self._remaining_covered_pub = rospy.Publisher("/executive/remaining_voxels", Float32, queue_size=5)
@@ -121,6 +122,9 @@ class BehaviorExecutive(object):
         
         self.viz_text_pub.publish(OverlayText(text=self.text))
 
+    def get_manhattan_dist(self, x1, y1, x2, y2):
+        return (abs(x2 - x1) + abs(y2 - y1))
+    
     def compute_assignments(self):
         
         valid_robots_list = []
@@ -130,13 +134,6 @@ class BehaviorExecutive(object):
 
         self.start_states.poses.clear()
         self.goal_locations.nodes.clear()
-        
-        # valid_nodes_list = []
-        # for node in self.all_targets:
-        #     if node not in self.sent_targets:
-        #         valid_nodes_list.append(node)
-                
-        # print(self.all_targets)
         
         if len(self.all_targets) == 0:
             return False
@@ -226,7 +223,63 @@ class BehaviorExecutive(object):
             
             return True
         elif self.assignment_type == 3:
-            return False
+            
+            self.updatedTargetList = False
+            assigned_indices = []
+            for idx, robot in enumerate(self.robots_info):
+                
+                if robot.num_nodes_left > 0:
+                    
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
+                    
+                    self.start_states.poses.append(r)
+                    
+                    if(idx < len(self.all_targets)):
+                        best_dist = 1000
+                        best_idx = -1
+                        # print("R: {} {}".format(robot.pose.position.x, robot.pose.position.y))
+                        for n_i,node in enumerate(self.all_targets):
+                           dist = self.get_manhattan_dist(node.x, node.y, robot.pose.position.x, robot.pose.position.y) 
+                           if ((dist <= best_dist) and (n_i not in assigned_indices)):
+                            #    print("N : {} {}".format(node.x, node.y))
+                               best_dist = dist
+                               best_idx = n_i
+                               
+                        if best_idx == -1:
+                            rospy.logerr('ERRORRR in assignments')
+                            return False
+                        
+                        assigned_indices.append(best_idx)
+
+                        n = CommsNodeMsg()
+                        n.x = self.all_targets[best_idx].x
+                        n.y = self.all_targets[best_idx].y
+                        
+                        # print("C : {} {}".format(n.x, n.y))
+                        self.goal_locations.nodes.append(n)
+                    else:
+                        n = CommsNodeMsg()
+                        n.x = robot.pose.position.x
+                        n.y = robot.pose.position.y
+                        
+                        self.goal_locations.nodes.append(n)
+                else:
+                    r = PoseStamped()
+                    r.pose.position.x = robot.pose.position.x
+                    r.pose.position.y = robot.pose.position.y
+                    r.pose.position.z = robot.pose.position.z
+                    
+                    self.start_states.poses.append(r)
+                    n = CommsNodeMsg()
+                    n.x = robot.pose.position.x
+                    n.y = robot.pose.position.y
+                    
+                    self.goal_locations.nodes.append(n)
+                    
+            return True
 
     def trigger_planner(self):
         if not self.plan_sent:
