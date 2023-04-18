@@ -1,7 +1,12 @@
 <launch>
+
       <include file="$(find simple_mapf_sim)/launch/sim.launch" />
 
-      <node name="behavior_executive_node" pkg="behavior_executive" type="behavior_executive_node.py" output="screen" respawn="false" />
-      <node name="lz_planner" pkg="planner_pkg" type="landing_planner" output="screen" respawn="false" />
-      <node name="coverage_planner" pkg="planner_pkg" type="coverage_planner" output="screen" respawn="false" />
+      <node name="ecbs_planner" pkg="planner_pkg" type="planner_node" output="screen" respawn="false" />
+
+      <node name="behavior_executive_node" pkg="behavior_executive" type="behavior_executive_node.py" output="screen" respawn="false">
+            <param name="assignment_type" value="1.0" />
+            <param name="planner_w" value="1.1" />
+      </node>
+      
 </launch>

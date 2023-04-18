@@ -1,0 +1,2 @@
+int32 planner_type
+float32 suboptimality_bound

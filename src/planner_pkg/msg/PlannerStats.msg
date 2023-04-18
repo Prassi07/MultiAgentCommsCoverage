@@ -1,2 +1,7 @@
-float64 time_taken
-uint16 states_expanded
+float64 total_cost
+float64 makespan
+float64 runtime
+uint16 states_expanded_highlevel
+uint16 states_expanded_lowlevel
+
+uint16 num_task_assignments

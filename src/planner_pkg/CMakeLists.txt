@@ -59,6 +59,7 @@ find_package(Boost 1.58 REQUIRED COMPONENTS program_options)
 add_message_files(
   FILES
   PlannerStats.msg
+  PlannerType.msg
 )
 
 ## Generate services in the 'srv' folder

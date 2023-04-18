@@ -16,7 +16,7 @@ class Vehicle:
         self.z = init_z
         self.del_t = del_t
 
-        self.num_nodes_left = comms_nodes_inventory
+        self.num_nodes_left = int(comms_nodes_inventory)
         self.curr_t = 0
         self.reached_goal = True
 

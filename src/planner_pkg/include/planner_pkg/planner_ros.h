@@ -17,6 +17,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <visualization_msgs/Marker.h>
 #include "planner_pkg/PlannerStats.h"
+#include "planner_pkg/PlannerType.h"
 
 #include "ecbs_planner.h"
 #include "planner_commons.h"
@@ -61,7 +62,7 @@ class PlannerNode{
         void OdometryHandler(const simple_mapf_sim::PoseStampedArray::ConstPtr& msg);
         void OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& msg);
         void TargetHandler(const simple_mapf_sim::CommsNodeArray::ConstPtr& msg);
-        void ComputePlanHandler(const std_msgs::UInt8::ConstPtr& msg);
+        void ComputePlanHandler(const planner_pkg::PlannerType::ConstPtr& msg);
 
         // Rosnode variables
         float ros_rate;

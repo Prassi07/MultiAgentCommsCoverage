@@ -8,7 +8,7 @@ PlannerNode::PlannerNode(){
     compute_plan = false;
     planner_type = 0;
 
-    ros_rate = 1;
+    ros_rate = 0.25;
     w = 1.1;
 }
 
@@ -22,10 +22,10 @@ void PlannerNode::Run(){
 
     // Create ROS Subs
     occupancy_grid_sub = nh.subscribe("/sim/occupancy_grid", 1, &PlannerNode::OccupancyGridHandler, this);
-    odom_sub = nh.subscribe("/sim/vehicle_poses", 1, &PlannerNode::OdometryHandler, this);
-    target_locations_sub = nh.subscribe("/sim/target_poses", 1, &PlannerNode::TargetHandler, this);
+    odom_sub = nh.subscribe("/executive/starts", 1, &PlannerNode::OdometryHandler, this);
+    target_locations_sub = nh.subscribe("/executive/targets", 1, &PlannerNode::TargetHandler, this);
 
-    compute_plan_sub = nh.subscribe("/planner/start", 1, &PlannerNode::ComputePlanHandler, this);
+    compute_plan_sub = nh.subscribe("/planner/compute", 1, &PlannerNode::ComputePlanHandler, this);
 
     plan_publisher = nh.advertise<simple_mapf_sim::MultiRobotPlan>("/planner/paths", 1, true);
     stats_pub = nh.advertise<planner_pkg::PlannerStats>("/planner/stats", 1);
@@ -36,9 +36,6 @@ void PlannerNode::Run(){
         if(initialized_map && init_targets && compute_plan){
             init_robots_pose = true;
             simple_mapf_sim::MultiRobotPlan full_plan;
-            // plan.vehicle_id = 0;
-            // plan.header.frame_id = "local_enu";
-            // plan.header.stamp = ros::Time::now();
             
             if (planner_type == 1){ // ECBS Planner
 
@@ -172,10 +169,11 @@ void PlannerNode::OdometryHandler(const simple_mapf_sim::PoseStampedArray::Const
     }
 }
 
-void PlannerNode::ComputePlanHandler(const std_msgs::UInt8::ConstPtr& msg){
+void PlannerNode::ComputePlanHandler(const planner_pkg::PlannerType::ConstPtr& msg){
     if(!compute_plan){
         ROS_INFO("Got command to start planner");
-        planner_type = msg->data;
+        planner_type = msg->planner_type;
+        w = msg->suboptimality_bound;
         compute_plan = true;
     }
 }

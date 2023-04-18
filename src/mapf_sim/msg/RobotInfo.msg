@@ -1,0 +1,2 @@
+geometry_msgs/Pose pose
+int32 num_nodes_left

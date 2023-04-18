@@ -59,6 +59,8 @@ add_message_files(
   OdometryArray.msg
   Battery.msg
   BatteryArray.msg
+  RobotInfo.msg
+  RobotArray.msg
   CommsNodeMsg.msg
   CommsNodeArray.msg
   MultiRobotPlan.msg

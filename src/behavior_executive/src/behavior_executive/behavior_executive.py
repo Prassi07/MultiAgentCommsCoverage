@@ -4,257 +4,152 @@ import rospy
 
 # msgs
 from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Float32
-from simple_mapf_sim.msg import Plan
+from geometry_msgs.msg import PoseStamped, Pose
+from std_msgs.msg import Float32, Bool
+from planner_pkg.msg import PlannerType
+from simple_mapf_sim.msg import Plan, PoseStampedArray, CommsNodeArray, RobotArray, RobotInfo, CommsNodeMsg
 from jsk_rviz_plugins.msg import OverlayText
 
 # application
 from behavior_executive.sim_interface import SimInterface
 
-
 class BehaviorStates(Enum):
     INIT = 0
-    TAKEOFF = 1
-    FOLLOW_GLOBAL = 2
-    GO_TO_LZ = 3
-    LAND = 4
-
+    COMPUTE_ASSIGNMENTS = 1
+    TRIGGER_PLANNER = 2
+    WAIT_EXECUTION = 3
 
 class BehaviorExecutive(object):
     def __init__(self):
         self.sim_interface = SimInterface()
 
-        self.global_plan = None
-        self.has_new_plan = False
-        self.wp_num = 0
-
-        self.lz_plans = None
-        self.selected_lz_plan = None
-        self.has_new_lz = False
-        self.lz_wp_num = 0
-        self.sent_lz = False
-        self.at_lz = False
-
-        self.battery_buffer = 5.0
-
+        self.reached_goal = False
+        self.all_targets_inited = False
+        self.plan_sent = False
+        
+        self.got_start_states = False
+        self.robots_info = []
+        self.all_targets = []
+        self.sent_targets = []
+        
+        self.collision = False
+        
         self.state = BehaviorStates.INIT
+        self.text = "Initializing..."
+        
+        self.start_states = PoseStampedArray()
+        self.goal_locations = CommsNodeArray()
+         
+        self.assignment_type = rospy.get_param("~assignment_type") # 1 - ECBS with sequential, 2 - ECBSTA, 3 - CBS - explicit TA based on distance
+        self.suboptimal_w = rospy.get_param("~planner_w")
+        
+        self.compute_plan_msg = PlannerType(planner_type = int(self.assignment_type), suboptimality_bound = self.suboptimal_w)
+        
+        self._covered_pub = rospy.Publisher( "/executive/covered_voxels", Float32, queue_size=5)
+        self._remaining_covered_pub = rospy.Publisher("/executive/remaining_voxels", Float32, queue_size=5)
+        self.viz_text_pub = rospy.Publisher("/executive/viz/text", OverlayText, queue_size=5)
+        
+        
+        self.planner_starts_pub = rospy.Publisher("/executive/starts", PoseStampedArray, queue_size=5)
+        self.planner_targets_pub = rospy.Publisher("/executive/targets", CommsNodeArray, queue_size=5)
+        self.planner_compute_pub = rospy.Publisher("/planner/compute", PlannerType, queue_size=5)
+        
+        self.robot_info_sub = rospy.Subscriber("/sim/vehicle_poses", RobotArray, self.robots_info_callback)
+        self.execution_feedback = rospy.Subscriber("/sim/goals_reached", Bool, self.execution_feedback)
+        self.full_target_list = rospy.Subscriber("/set_coverage/targets", CommsNodeArray, self.all_targets_callback)
+        self.vehicle_in_collision_sub = rospy.Subscriber('/sim/collision_detected', Bool, self.collision_feedback)
+        
 
-        # meters to consider a wp reached
-        self.reached_thresh = 5.0
+    def all_targets_callback(self, msg):
+        # self.all_targets = msg.nodes
+        self.all_targets.append(CommsNodeMsg(x = 10, y = 10, id = 0))
+        self.all_targets.append(CommsNodeMsg(x = -10, y = -10, id = 0))
+        self.all_targets.append(CommsNodeMsg(x = -10, y = 10, id = 0))
+        self.all_targets.append(CommsNodeMsg(x = 10, y = -10, id = 0))
+        self.all_targets_inited = True
 
-        self._waypoint_dist_remain_pub = rospy.Publisher(
-            "/behavior_executive/distance_to_wp", Float32, queue_size=10
-        )
+    def collision_feedback(self, msg):
+        self.collision = msg.data
 
-        self._battery_remain_pub = rospy.Publisher(
-            "/behavior_executive/battery", Float32, queue_size=10
-        )
-
-        self._wp_number_pub = rospy.Publisher(
-            "/behavior_executive/waypoint_number", Float32, queue_size=10
-        )
-
-        self._covered_pub = rospy.Publisher(
-            "/behavior_executive/covered_voxels", Float32, queue_size=10
-        )
-
-        self._remaining_covered_pub = rospy.Publisher(
-            "/behavior_executive/remaining_voxels", Float32, queue_size=10
-        )
-
-        self.lz_path_pub = rospy.Publisher(
-            "/behavior_executive/landing_zone_path", Path, queue_size=10, latch=True
-        )
-
-        self.global_path_pub = rospy.Publisher(
-            "/behavior_executive/global_path", Path, queue_size=10, latch=True
-        )
-
-        self.viz_text_pub = rospy.Publisher(
-            "/behavior_executive/viz/text", OverlayText, queue_size=10
-        )
-
-        self._global_plan_sub = rospy.Subscriber(
-            "/planning/global", Plan, self.global_path_callback
-        )
-
-        self._landing_zone_plans = rospy.Subscriber(
-            "/planning/landing_zones", Plan, self.lz_path_callback
-        )
-
-    def publish_lz_path(self, plan):
-        msg = Path()
-        msg.header = plan.header
-
-        for wp in plan.plan:
-            pose = PoseStamped()
-            pose.pose = wp.position
-            msg.poses.append(pose)
-
-        self.lz_path_pub.publish(msg)
-
-    def publish_global_path(self, plan):
-        msg = Path()
-        msg.header = plan.header
-
-        for wp in plan.plan:
-            pose = PoseStamped()
-            pose.pose = wp.position
-            msg.poses.append(pose)
-
-        self.global_path_pub.publish(msg)
-
-    def global_path_callback(self, msg):
-        self.global_plan = msg
-        self.has_new_plan = True
-        self.publish_global_path(msg)
-        rospy.loginfo("BehaviorExecutive: Received new plan!")
-
-    def lz_path_callback(self, msg):
-        if not self.sent_lz:
-            self.lz_plans = msg
-            self.publish_lz_path(msg)
-            self.has_new_lz = True
-
-    def has_reached(self, wp, odom):
-        if wp is None or odom is None:
-            return False
-        diff_x = abs(wp.position.position.x - odom.pose.position.x)
-        diff_y = abs(wp.position.position.y - odom.pose.position.y)
-        diff_z = abs(wp.position.position.z - odom.pose.position.z)
-
-        dist = math.sqrt(diff_x * diff_x + diff_y * diff_y + diff_z * diff_z)
-
-        self._waypoint_dist_remain_pub.publish(Float32(dist))
-
-        return dist <= self.reached_thresh
-
-    def should_land(self):
-        # TODO: add battery smarts
-        bat = self.sim_interface.get_vehicle_battery()
-
-        if self.lz_plans is not None and bat is not None:
-            return self.lz_plans.battery_required + self.battery_buffer >= bat.percent
-        return False
-
-    def command_land(self):
-        self.sim_interface.command_land()
+    def robots_info_callback(self, msg):
+        if self.reached_goal:
+            self.robots_info = msg.robots
+            self.got_start_states = True
+            
+    def execution_feedback(self, msg):
+        self.reached_goal = msg.data
 
     def update_viz(self):
-        bat = self.sim_interface.get_vehicle_battery()
-
-        if bat is not None:
-            self._battery_remain_pub.publish(Float32(bat.percent))
-
-        if self.global_plan is not None:
-            self._wp_number_pub.publish(
-                Float32(data=self.wp_num % len(self.global_plan.plan))
-            )
-
         covered, remaining_covered = self.sim_interface.get_coverage()
         total_voxels = covered + remaining_covered
         percent_covered = covered / total_voxels
         percent_remaining = remaining_covered / total_voxels
         self._covered_pub.publish(Float32(percent_covered))
         self._remaining_covered_pub.publish(Float32(percent_remaining))
-
-        if self.sent_lz:
-            text = "Following Emergency Landing Plan!"
-        else:
-            if self.state == BehaviorStates.INIT:
-                text = "Waiting on Global Plan!"
-            else:
-                text = "Following Global Plan!"
         
-        self.viz_text_pub.publish(OverlayText(text=text))
+        self.viz_text_pub.publish(OverlayText(text=self.text))
 
-    def send_lz_plan(self):
-        if self.lz_plans is not None:
-            if not self.sent_lz:
-                self.sim_interface.send_plan(self.lz_plans)
-                self.sent_lz = True
-            bat = self.sim_interface.get_vehicle_battery()
-            rospy.loginfo_once("BehaviorExecutive: Sending LZ plan!")
-            rospy.loginfo_once(
-                "Battery is {} requried to go is {}".format(
-                    bat.percent, self.lz_plans.battery_required
-                )
-            )
-            if self.has_reached(
-                self.lz_plans.plan[0], self.sim_interface.get_vehicle_odom()
-            ):
-                self.lz_wp_num = self.lz_wp_num + 1
-                if self.lz_wp_num == len(self.lz_plans.plan):
-                    rospy.logwarn("BehaviorExecutive: Reached end of LZ plan!")
-                    self.at_lz = True
-                    return
+    def compute_assignments(self):
+        
+        if self.assignment_type == 1 or self.assignment_type == 2:
+            
+            valid_robots_list = []
+            for robot in self.robots_info:
+                if robot.num_nodes_left > 0:
+                    valid_robots_list.append(robot)
 
-                # go to next wp
-                first = self.lz_plans.plan[0]
-                self.lz_plans.plan = self.lz_plans.plan[1:]
-                self.lz_plans.plan.append(first)
-                self.sim_interface.send_plan(self.lz_plans)
-                rospy.loginfo(
-                    "BehaviorExecutive: Sending next LZ waypoint! Sent total {}".format(
-                        self.lz_wp_num
-                    )
-                )
+            self.start_states.poses.clear()
+            self.goal_locations.nodes.clear()
+            
+            valid_nodes_list = []
+            for node in self.all_targets:
+                if node not in self.sent_targets:
+                    valid_nodes_list.append(node)
+                    
+            for robot, node in zip(valid_robots_list, self.all_targets):
+                r = PoseStamped()
+                r.pose.position.x = robot.pose.position.x
+                r.pose.position.y = robot.pose.position.y
+                r.pose.position.z = robot.pose.position.z
+                
+                self.start_states.poses.append(r)
+                
+                n = CommsNodeMsg()
+                n.x = node.x
+                n.y = node.y
+                
+                self.goal_locations.nodes.append(n)
+                self.sent_targets.append(node)
+            
+            return True
+        
+        elif self.assignment_type == 3:
+            return False
 
-    def send_global_plan(self):
-        # new global plan received, reset
-        if self.has_new_plan:
-            self.wp_num = 0
-            self.sim_interface.send_plan(self.global_plan)
-            self.has_new_plan = False
-
-        if self.global_plan is not None:
-            if self.has_reached(
-                self.global_plan.plan[0], self.sim_interface.get_vehicle_odom()
-            ):
-                self.wp_num = self.wp_num + 1
-                if self.wp_num == len(self.global_plan.plan):
-                    rospy.logwarn("BehaviorExecutive: Reached end of plan!")
-                    return True
-                else:
-                    # go to next wp
-                    first = self.global_plan.plan[0]
-                    self.global_plan.plan = self.global_plan.plan[1:]
-                    self.global_plan.plan.append(first)
-                    self.sim_interface.send_plan(self.global_plan)
-                    rospy.loginfo(
-                        "BehaviorExecutive: Sending next waypoint! Sent total {}".format(
-                            self.wp_num
-                        )
-                    )
-        return False
-
-    def publish_next_waypoint(self):
-        if self.state == BehaviorStates.INIT:
-            if self.has_new_plan:
-                self.state = BehaviorStates.TAKEOFF
-        elif self.state == BehaviorStates.TAKEOFF:
-            self.sim_interface.command_takeoff()
-            self.state = BehaviorStates.FOLLOW_GLOBAL
-        elif self.state == BehaviorStates.FOLLOW_GLOBAL:
-            if self.should_land():
-                self.state = BehaviorStates.GO_TO_LZ
-            else:
-                done = self.send_global_plan()
-                if done:
-                    self.state = BehaviorStates.GO_TO_LZ
-        elif self.state == BehaviorStates.GO_TO_LZ:
-            if self.at_lz:
-                self.state = BehaviorStates.LAND
-            else:
-                self.send_lz_plan()
-        elif self.state == BehaviorStates.LAND:
-            self.command_land()
-        else:
-            rospy.logerr(
-                "BehaviorExecutive: Invalid state reached! State: {}".format(self.state)
-            )
-        self.update_viz()
+    def trigger_planner(self):
+        self.planner_starts_pub.publish(self.start_states)
+        self.planner_targets_pub.publish(self.goal_locations)
+        self.planner_compute_pub.publish(self.compute_plan_msg)
 
     def run(self):
-        self.publish_next_waypoint()
+        
+        if self.state == BehaviorStates.INIT:
+            if (self.reached_goal) and (self.all_targets_inited) and (self.got_start_states):
+                self.state = BehaviorStates.COMPUTE_ASSIGNMENTS
+                self.text = "Computing Assignments"
+        elif self.state == BehaviorStates.COMPUTE_ASSIGNMENTS:
+            ret = self.compute_assignments()
+            if ret:
+                self.state = BehaviorStates.TRIGGER_PLANNER
+                self.text = "Triggering Planner"
+        elif self.state == BehaviorStates.TRIGGER_PLANNER:
+            self.trigger_planner()
+            self.plan_sent = True    
+            self.state = BehaviorStates.WAIT_EXECUTION
+            self.text = "Executing Plans"
+        elif self.state == BehaviorStates.WAIT_EXECUTION:
+            if (self.plan_sent) and (self.reached_goal):
+                self.state = BehaviorStates.INIT 
+                self.text = "Goals Reached, restarting.."
+                           
+        self.update_viz()

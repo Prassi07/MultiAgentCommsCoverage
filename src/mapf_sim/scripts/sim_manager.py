@@ -7,7 +7,8 @@ import time
 
 
 from rospkg import RosPack
-from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray, CommsNodeMsg, CommsNodeArray, MultiRobotPlan
+from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray
+from simple_mapf_sim.msg import CommsNodeMsg, CommsNodeArray, MultiRobotPlan, RobotInfo, RobotArray
 from simple_mapf_sim.environment import *
 from geometry_msgs.msg import PoseStamped, Point, Pose, Quaternion, PoseArray
 from std_msgs.msg import ColorRGBA, Bool
@@ -56,6 +57,7 @@ class SimManager:
         self.coverage_map = np.ones(self.map_voxels**2, dtype=int)
 
         self.new_plan_in = False
+        self.execution_in_progress = False
 
     def env_setup(self):
 
@@ -82,15 +84,12 @@ class SimManager:
                             nodes_per_robot)
 
     def get_vehicle_position(self, time, frame):
-        v_poses = PoseStampedArray()
+        v_poses = RobotArray()
         v_poses.header.frame_id = frame
         v_poses.header.stamp = time
 
-        poses_array = []
         for id_num in range(self.sim_env.vehicle_num):
-            vehicle_pose = PoseStamped()
-            vehicle_pose.header.frame_id = frame
-            vehicle_pose.header.stamp = time
+            vehicle_pose = RobotInfo()
             vehicle_pose.pose.position.x = self.sim_env.vehicles[id_num].x
             vehicle_pose.pose.position.y = self.sim_env.vehicles[id_num].y
             vehicle_pose.pose.position.z = self.sim_env.vehicles[id_num].z
@@ -100,10 +99,11 @@ class SimManager:
             vehicle_pose.pose.orientation.y = quat[1]
             vehicle_pose.pose.orientation.z = quat[2]
             vehicle_pose.pose.orientation.w = quat[3]
+            
+            vehicle_pose.num_nodes_left = self.sim_env.vehicles[id_num].num_nodes_left
 
-            poses_array.append(vehicle_pose)
+            v_poses.robots.append(vehicle_pose)
 
-        v_poses.poses = poses_array
         return v_poses
     
     def get_comms_positions(self, time, frame):
@@ -223,9 +223,10 @@ class SimManager:
         return grid
 
     def planner_callback(self, msg):
-        ret = self.sim_env.update_waypts(msg)
-        if ret:
-            self.new_plan_in = True
+        if not self.execution_in_progress:
+            ret = self.sim_env.update_waypts(msg)
+            if ret:
+                self.new_plan_in = True
 
     def get_basestation_marker(self, time, frame):
         basest_marker = MarkerArray()
@@ -393,7 +394,7 @@ class SimManager:
 
     def main(self):
         
-        vehicle_pose_pub = rospy.Publisher('/sim/vehicle_poses', PoseStampedArray, queue_size=10)
+        vehicle_pose_pub = rospy.Publisher('/sim/vehicle_poses', RobotArray, queue_size=10)
         obstacle_pose_pub = rospy.Publisher('/sim/obstacles', ObstacleArray, queue_size=10)
         comms_pose_pub = rospy.Publisher('/sim/comms_nodes', CommsNodeArray, queue_size=10)
         
@@ -444,9 +445,11 @@ class SimManager:
             if self.new_plan_in:
                 self.sim_env.update_states()
                 self.new_plan_in = False
+                self.execution_in_progress = True
             else:
                 if(self.check_all_goals_reached()):
                     goals_reached_pub.publish(Bool(True))
+                    self.execution_in_progress = False
                 else:
                     goals_reached_pub.publish(Bool(False))
                     self.sim_env.update_states()

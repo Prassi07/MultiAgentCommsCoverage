@@ -5,7 +5,7 @@ from behavior_executive.behavior_executive import BehaviorExecutive
 
 
 if __name__ == "__main__":
-    rospy.init_node("dummy_planner")
+    rospy.init_node("behavior_exec")
     node_ = BehaviorExecutive()
     rate = rospy.Rate(10.0)
 
