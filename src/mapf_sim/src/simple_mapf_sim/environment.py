@@ -12,7 +12,7 @@ from geographic_msgs.msg import GeoPose
 class Environment:
     def __init__(self, init_x=None, init_y=None, init_z=None,
                  vehicle_num=3, del_t=1,
-                 waypt_threshold=5, list_of_obstacle_dicts=[], nodes_per_robot=10):
+                list_of_obstacle_dicts=[], nodes_per_robot=10):
         '''
         Setup simulation environment
         '''
@@ -37,11 +37,7 @@ class Environment:
         self.vehicles = []
         for robot in range(self.vehicle_num):
             self.vehicles.append(self.init_vehicle(robot, vehicle_positions[robot]))
-        
-        self.global_waypt_list = [[] for i in range(vehicle_num)]
 
-        self.waypt_threshold = waypt_threshold
-        self.curr_waypt_num = 0
 
     def is_in_collision(self):
         for i in range(self.vehicle_num):
@@ -65,57 +61,25 @@ class Environment:
     def init_vehicle(self, id_num, position):
         return Vehicle(id_num = id_num, init_x = position[0], init_y = position[1], init_z = position[2], comms_nodes_inventory = self.nodes_per_robot, del_t=self.del_t)
 
-
-    def traverse(self):
-        '''
-        Waypoint manager and vehicle state update- moves vehicle towards waypoints as long as waypoints exist in global_waypt_list
-        '''
-        for veh_wps in self.global_waypt_list:
-            # if not veh_wps or len(veh_wps.plan) == 0:
-            #     pass
-            # else:
-            #     i = veh_wps.vehicle_id
-            #     if (self.vehicle[i].battery == 0 or self.vehicle[i].in_flight_cond == False):
-            #         next_position = np.array(
-            #         [self.vehicle[i].x,
-            #          self.vehicle[i].y,
-            #          0])
-            #     else:
-            #         next_position = np.array(
-            #         [veh_wps.plan[0].position.position.x,
-            #          veh_wps.plan[0].position.position.y,
-            #          veh_wps.plan[0].position.position.z])
-            #     dist_to_waypt = np.linalg.norm(
-            #         [self.vehicle[i].x, self.vehicle[i].y, self.vehicle[i].z] - next_position)
-
-            #     # update waypoint list if reached waypoint
-            #     if dist_to_waypt < self.waypt_threshold:
-            #         # print("Reached waypoint -> ", next_position)
-            #         self.curr_waypt_num += 1
-            #         self.global_waypt_list[i].plan.pop(0)
-            #     # else keep trying to navigate to next waypoint
-                
-            #     else:
-            #         omega, z_d, dx, dy = self.vehicle[i].go_to_goal(self.max_omega, self.max_zvel,
-            #                                             next_position, self.K_p,
-            #                                             self.K_p_z)
-            #         self.vehicle[i].x += self.del_t * dx
-            #         self.vehicle[i].y += self.del_t * dy
-            #         self.vehicle[i].z += self.del_t * z_d
-            pass
-
-
     def update_waypts(self, new_wpts):
         '''
         Receive new waypoints and send them to waypoint manager
         '''
-        # self.global_waypt_list.append(new_wpts)
-        self.global_waypt_list[new_wpts.vehicle_id] = new_wpts
-        self.curr_waypt_num = 0
+
+        for idx,robot in enumerate(self.vehicles):
+            ret = robot.update_plan(new_wpts.plans[idx])
+            if not ret:
+                rospy.logwarn("Incoming Plan not starting from current pos... ignoring")
+                return False
+        
+        return True
 
     def update_states(self):
         '''
         Updates the environment states
         '''
-        self.traverse()
+        for robot in self.vehicles:
+            robot.move_one_time_step()
 
+    def drop_comms_nodes(self, x, y):
+        self.comms_nodes.append(CommsNode(len(self.comms_nodes) + 1, x, y))

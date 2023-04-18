@@ -7,7 +7,7 @@ import time
 
 
 from rospkg import RosPack
-from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray, CommsNodeMsg, CommsNodeArray
+from simple_mapf_sim.msg import Plan, Waypoint, ObstaclePose, ObstacleArray, PoseStampedArray, OdometryArray, CommsNodeMsg, CommsNodeArray, MultiRobotPlan
 from simple_mapf_sim.environment import *
 from geometry_msgs.msg import PoseStamped, Point, Pose, Quaternion, PoseArray
 from std_msgs.msg import ColorRGBA, Bool
@@ -54,6 +54,8 @@ class SimManager:
         self.map_voxels = int(self.map_size / self.map_resolution)
         self.coverage_map = np.ones(self.map_voxels**2, dtype=int)
 
+        self.new_plan_in = False
+
     def env_setup(self):
 
         # obstacles
@@ -75,7 +77,6 @@ class SimManager:
                             init_z,
                             vehicle_num,
                             del_t,
-                            waypt_threshold,
                             obst_list, 
                             nodes_per_robot)
 
@@ -221,7 +222,9 @@ class SimManager:
         return grid
 
     def planner_callback(self, msg):
-        self.sim_env.update_waypts(msg)
+        ret = self.sim_env.update_waypts(msg)
+        if ret:
+            self.new_plan_in = True
 
     def get_basestation_marker(self, time, frame):
         basest_marker = MarkerArray()
@@ -363,8 +366,8 @@ class SimManager:
             comms_marker.lifetime = rospy.Duration()
             
             quat = quaternion_from_euler(0, -1.57, 0)
-            comms_marker.pose.position.x = node.x
-            comms_marker.pose.position.y = node.y
+            comms_marker.pose.position.x = node.x + 0.5
+            comms_marker.pose.position.y = node.y + 0.5
             comms_marker.pose.position.z = 0.1
             comms_marker.pose.orientation.x = quat[0]
             comms_marker.pose.orientation.y = quat[1]
@@ -379,6 +382,16 @@ class SimManager:
 
         return comms_marker_array
         
+    def check_all_goals_reached(self):
+        reached = True
+        for idx, robot in enumerate(self.sim_env.vehicles):
+            if (robot.reached_goal) and (not robot.recently_dropped_node):
+                self.sim_env.drop_comms_nodes(robot.x, robot.y)
+                self.sim_env.vehicles[idx].setCommsNodeDropped(True)
+            reached = reached & robot.reached_goal
+
+        return reached
+
     def main(self):
         
         vehicle_pose_pub = rospy.Publisher('/sim/vehicle_poses', PoseStampedArray, queue_size=10)
@@ -397,7 +410,8 @@ class SimManager:
         vehicle_trajectory_pub = rospy.Publisher('/sim/markers/vehicle_trajectory', MarkerArray, queue_size=10)
         obstacle_marker_pub = rospy.Publisher('/sim/markers/obstacles', MarkerArray, queue_size=10, latch=True)
 
-        waypt_sub = rospy.Subscriber(self.planner_path_topic, Plan, self.planner_callback)
+        waypt_sub = rospy.Subscriber(self.planner_path_topic, MultiRobotPlan, self.planner_callback)
+        goals_reached_pub = rospy.Publisher('/sim/goals_reached', Bool, queue_size = 1)
         rate = rospy.Rate(1/self.sim_env.del_t)
         counter = 0
 
@@ -425,11 +439,19 @@ class SimManager:
             # if(abs(self.sim_env.current_timestep - int(self.sim_env.current_timestep)) < 0.1):
             coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
             
-            if counter % 10 == 0:
-                vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame))
+            # if counter % 10 == 0:
+            #     vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame))
+            # counter += 1
 
-            counter += 1
-            self.sim_env.update_states()
+            if self.new_plan_in:
+                self.sim_env.update_states()
+                self.new_plan_in = False
+            else:
+                if(self.check_all_goals_reached()):
+                    goals_reached_pub.publish(Bool(True))
+                else:
+                    goals_reached_pub.publish(Bool(False))
+                    self.sim_env.update_states()
 
             if self.sim_env.is_in_collision():
                 collision_detected = True

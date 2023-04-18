@@ -8,7 +8,7 @@
 
     <rosparam command="load" file="$(find simple_mapf_sim)/config/sim.yaml" subst_value="True"/>
     <node name="sim_manager_node" pkg="simple_mapf_sim" type="sim_manager.py" output="screen" respawn="false">
-        <param name="planner_path" value="/global_path"/>
+        <param name="planner_path" value="/planner/paths"/>
     </node>
 
     <!-- <node name="dummy_planner" pkg="simple_mapf_sim" type="dummy_planner.py" output="screen" respawn="false" /> -->

@@ -58,8 +58,8 @@ void PlannerNode::Run(){
                         simple_mapf_sim::Plan plan;
                         for(const auto& state : solution[r].states){
                             simple_mapf_sim::Waypoint wp;
-                            wp.x = state.first.x;
-                            wp.y = state.first.y;
+                            wp.x = (state.first.x + x_offset) * map_resolution;
+                            wp.y = (state.first.y + y_offset) * map_resolution;
                             wp.t = state.second;
                             plan.plan.push_back(wp);
                         }
@@ -91,8 +91,8 @@ void PlannerNode::Run(){
                         ROS_INFO_STREAM("Robot " << r << " Path length: "<< solution[r].states.size());
                         for(const auto& state : solution[r].states){
                             simple_mapf_sim::Waypoint wp;
-                            wp.x = state.first.x;
-                            wp.y = state.first.y;
+                            wp.x = (state.first.x + x_offset) * map_resolution;
+                            wp.y = (state.first.y + y_offset) * map_resolution;
                             wp.t = state.second;
                             plan.plan.push_back(wp);
                         }
