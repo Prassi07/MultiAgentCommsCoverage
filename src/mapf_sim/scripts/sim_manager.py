@@ -40,6 +40,7 @@ def get_color_robot(index):
     ros_color.b = ROBOT_COLORS[int(index % total_colors)][2]
     ros_color.a = 1.0
     return  ros_color
+
 class SimManager:
     def __init__(self):
 
@@ -302,26 +303,24 @@ class SimManager:
             trajectory_marker.action = Marker.ADD
             trajectory_marker.lifetime = rospy.Duration()
 
-            self.vehicle_traj_list[veh.id_num].append([veh.x, veh.y, veh.z])
-
-            # setting traj length to 100
-            if len(self.vehicle_traj_list[veh.id_num]) > 1000:
-                self.vehicle_traj_list[veh.id_num].pop(0)
 
             trajectory_marker.pose.position.x = 0
             trajectory_marker.pose.position.y = 0
             trajectory_marker.pose.position.z = 0
 
-            for p in self.vehicle_traj_list[veh.id_num]:
-                trajectory_marker.points.append(Point(p[0], p[1], p[2]))
+            trajectory_marker.pose.orientation.x = 0
+            trajectory_marker.pose.orientation.y = 0
+            trajectory_marker.pose.orientation.z = 0
+            trajectory_marker.pose.orientation.w = 1
 
-            trajectory_marker.color.r = 1
-            trajectory_marker.color.g = 69/255
-            trajectory_marker.color.b = 0
-            trajectory_marker.color.a = 1
-            trajectory_marker.scale.x = 1
-            trajectory_marker.scale.y = 1
-            trajectory_marker.scale.z = 1
+            for p in veh.plan:
+                trajectory_marker.points.append(Point(p.x + 0.5, p.y + 0.5, 0.5))
+
+            trajectory_marker.color = get_color_robot(veh.id_num)
+            
+            trajectory_marker.scale.x = 0.2
+            trajectory_marker.scale.y = 0.2
+            trajectory_marker.scale.z = 0.2
 
             markers.markers.append(trajectory_marker)
 
@@ -366,8 +365,8 @@ class SimManager:
             comms_marker.lifetime = rospy.Duration()
             
             quat = quaternion_from_euler(0, -1.57, 0)
-            comms_marker.pose.position.x = node.x + 0.5
-            comms_marker.pose.position.y = node.y + 0.5
+            comms_marker.pose.position.x = node.x
+            comms_marker.pose.position.y = node.y
             comms_marker.pose.position.z = 0.1
             comms_marker.pose.orientation.x = quat[0]
             comms_marker.pose.orientation.y = quat[1]
@@ -385,7 +384,7 @@ class SimManager:
     def check_all_goals_reached(self):
         reached = True
         for idx, robot in enumerate(self.sim_env.vehicles):
-            if (robot.reached_goal) and (not robot.recently_dropped_node):
+            if (robot.reached_goal) and (not robot.recently_dropped_node) and (robot.num_nodes_left > 0):
                 self.sim_env.drop_comms_nodes(robot.x, robot.y)
                 self.sim_env.vehicles[idx].setCommsNodeDropped(True)
             reached = reached & robot.reached_goal
@@ -436,12 +435,11 @@ class SimManager:
             vehicle_marker_pub.publish(self.get_vehicle_marker(time, frame))
             comms_marker_pub.publish(self.get_comms_nodes_markers(time, frame))
             
-            # if(abs(self.sim_env.current_timestep - int(self.sim_env.current_timestep)) < 0.1):
-            coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
-            
-            # if counter % 10 == 0:
-            #     vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame))
-            # counter += 1
+            if counter % 10 == 0:
+                vehicle_trajectory_pub.publish(self.get_vehicle_trajectory_marker(time, frame))
+                coverage_grid_pub.publish(self.get_coverage_grid(time, frame))
+
+            counter += 1
 
             if self.new_plan_in:
                 self.sim_env.update_states()

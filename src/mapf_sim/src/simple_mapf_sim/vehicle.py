@@ -40,6 +40,7 @@ class Vehicle:
 
     def setCommsNodeDropped(self, msg):
         self.recently_dropped_node = msg
+        self.num_nodes_left -= 1
     
     def move_one_time_step(self):
         '''
