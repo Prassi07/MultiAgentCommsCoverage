@@ -22,6 +22,7 @@
 #include "ecbs_planner.h"
 #include "planner_commons.h"
 #include "ecbs_ta_planner.h"
+#include "mapf_lib/timer.hpp"
 
 #include "simple_mapf_sim/PoseStampedArray.h"
 #include "simple_mapf_sim/CommsNodeArray.h"

@@ -38,6 +38,7 @@ void PlannerNode::Run(){
             
             if (planner_type == 1){ // ECBS Planner
 
+                Timer timer;
                 // Setup planner
                 ECBS_Environment mapf(dimx, dimy, obstacles, goals, false); // disappearAtGoal = false
                 mapf_lib::ECBS<State, Action, int, Conflict, Constraints, ECBS_Environment> ecbs(mapf, w);
@@ -46,12 +47,20 @@ void PlannerNode::Run(){
                 ROS_INFO("Starting ECBS Planner");
                 // Compute Solution
                 bool success = ecbs.search(startStates, solution);
+                timer.stop();
 
                 if(success && solution.size()){
                     ROS_INFO("Successfully found paths to goals using ECBS");
                     full_plan.plans.clear();
+                    int64_t cost = 0;
+                    int64_t makespan = 0;
                     for(size_t r = 0; r < solution.size(); ++r){
+                        
+                        cost += solution[r].cost;
+                        makespan = std::max<int64_t>(makespan, solution[r].cost);
+
                         simple_mapf_sim::Plan plan;
+
                         for(const auto& state : solution[r].states){
                             simple_mapf_sim::Waypoint wp;
                             wp.x = (state.first.x + x_offset) * map_resolution;
@@ -63,6 +72,15 @@ void PlannerNode::Run(){
                     }
 
                     plan_publisher.publish(full_plan);
+                    planner_pkg::PlannerStats stats;
+                    stats.makespan = makespan;
+                    stats.total_cost = cost;
+                    stats.runtime = timer.elapsedSeconds();
+                    stats.num_task_assignments = 0;
+                    stats.states_expanded_highlevel = mapf.highLevelExpanded();
+                    stats.states_expanded_lowlevel = mapf.lowLevelExpanded();
+
+                    stats_pub.publish(stats);
                 }
                 else{
                     ROS_ERROR("ECBS Could Not Find a Solution!");
@@ -70,6 +88,7 @@ void PlannerNode::Run(){
             }
             if (planner_type == 2){ // ECBS TA Planner
 
+                Timer timer;
                 ROS_INFO("Starting ECBS-TA Planner");
                 // Setup planner
                 ECBSTA_Environment mapf(dimx, dimy, obstacles, startStates, potential_goals, 1000); // maxTaxAssignments = 1000
@@ -78,14 +97,24 @@ void PlannerNode::Run(){
 
                 // Compute Solution
                 bool success = ecbsta.search(startStates, solution);
-
+                timer.stop();
+                
                 if(success && solution.size() > 0){
-                    ROS_INFO_STREAM("Successfully found paths to goals using ECBS-TA" << solution.size());
+                    ROS_INFO_STREAM("Successfully found paths to goals using ECBS-TA");
                     full_plan.plans.clear();
+
+                    int64_t cost = 0;
+                    int64_t makespan = 0;
+                    
                     for(size_t r = 0; r < solution.size(); ++r){
+                    
+                        cost += solution[r].cost;
+                        makespan = std::max<int64_t>(makespan, solution[r].cost);
+                        
                         simple_mapf_sim::Plan plan;
-                        ROS_INFO_STREAM("Robot " << r << " Path length: "<< solution[r].states.size());
+                        // ROS_INFO_STREAM("Robot " << r << " Path length: "<< solution[r].states.size());
                         for(const auto& state : solution[r].states){
+
                             simple_mapf_sim::Waypoint wp;
                             wp.x = (state.first.x + x_offset) * map_resolution;
                             wp.y = (state.first.y + y_offset) * map_resolution;
@@ -96,6 +125,16 @@ void PlannerNode::Run(){
                     }
 
                     plan_publisher.publish(full_plan);
+
+                    planner_pkg::PlannerStats stats;
+                    stats.makespan = makespan;
+                    stats.total_cost = cost;
+                    stats.runtime = timer.elapsedSeconds();
+                    stats.num_task_assignments = mapf.numTaskAssignments();
+                    stats.states_expanded_highlevel = mapf.highLevelExpanded();
+                    stats.states_expanded_lowlevel = mapf.lowLevelExpanded();
+
+                    stats_pub.publish(stats);
                 }
                 else{
                     ROS_ERROR("ECBS-TA Could Not Find a Solution!");

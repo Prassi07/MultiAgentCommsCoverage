@@ -1,5 +1,5 @@
-float64 total_cost
-float64 makespan
+int64 total_cost
+int64 makespan
 float64 runtime
 uint16 states_expanded_highlevel
 uint16 states_expanded_lowlevel

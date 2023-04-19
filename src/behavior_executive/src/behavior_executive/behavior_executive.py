@@ -1,7 +1,7 @@
 import math
 from enum import Enum
 import rospy
-
+import time
 # msgs
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose
@@ -54,7 +54,7 @@ class BehaviorExecutive(object):
         self._covered_pub = rospy.Publisher( "/executive/covered_voxels", Float32, queue_size=5)
         self._remaining_covered_pub = rospy.Publisher("/executive/remaining_voxels", Float32, queue_size=5)
         self.viz_text_pub = rospy.Publisher("/executive/viz/text", OverlayText, queue_size=5)
-        
+        self.assignment_time_pub = rospy.Publisher("/executive/assignment_time", Float32, queue_size=5)
         
         self.planner_starts_pub = rospy.Publisher("/executive/starts", PoseStampedArray, queue_size=5)
         self.planner_targets_pub = rospy.Publisher("/executive/targets", CommsNodeArray, queue_size=5)
@@ -287,10 +287,13 @@ class BehaviorExecutive(object):
                 self.state = BehaviorStates.COMPUTE_ASSIGNMENTS
                 self.text = "Received Inputs"
         elif self.state == BehaviorStates.COMPUTE_ASSIGNMENTS:
+            time1 = time.time()
             ret = self.compute_assignments()
+            duration = time.time() - time1
             if ret:
                 self.state = BehaviorStates.TRIGGER_PLANNER
                 self.text = "Computing Assignments"
+                self.assignment_time_pub.publish(Float32(duration))
             else:
                 self.state = BehaviorStates.ALL_NODES_PLACED
         elif self.state == BehaviorStates.TRIGGER_PLANNER:
