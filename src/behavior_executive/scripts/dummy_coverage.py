@@ -32,9 +32,40 @@ class CoveragePlanner(object):
         test2.nodes.append(CommsNodeMsg(x = -10, y = 0, id = 6))
         test2.nodes.append(CommsNodeMsg(x = 0, y = 10, id = 7))
         
+        test3 = CommsNodeArray()
+        test3.nodes.append(CommsNodeMsg(x = 12, y = 0, id = 0))
+        test3.nodes.append(CommsNodeMsg(x = 0, y = -12, id = 1))
+        test3.nodes.append(CommsNodeMsg(x = 12, y = 12, id = 2))
+        test3.nodes.append(CommsNodeMsg(x = -12, y = -12, id = 3))
+        
+        test3.nodes.append(CommsNodeMsg(x = -12, y = 12, id = 4))
+        test3.nodes.append(CommsNodeMsg(x = 12, y = -12, id = 5))
+        test3.nodes.append(CommsNodeMsg(x = -12, y = 0, id = 6))
+        test3.nodes.append(CommsNodeMsg(x = 0, y = 12, id = 7))
+        
+        test3.nodes.append(CommsNodeMsg(x = 24, y = 0, id = 8))
+        test3.nodes.append(CommsNodeMsg(x = 0, y = -24, id = 9))
+        test3.nodes.append(CommsNodeMsg(x = 24, y = 24, id = 10))
+        test3.nodes.append(CommsNodeMsg(x = -24, y = -24, id = 11))
+        
+        test3.nodes.append(CommsNodeMsg(x = -24, y = 24, id = 12))
+        test3.nodes.append(CommsNodeMsg(x = 24, y = -24, id = 13))
+        test3.nodes.append(CommsNodeMsg(x = -24, y = 0, id = 14))
+        test3.nodes.append(CommsNodeMsg(x = 0, y = 24, id = 15))
+        
+        test3.nodes.append(CommsNodeMsg(x = 24, y = 12, id = 16))
+        test3.nodes.append(CommsNodeMsg(x = 12, y = -24, id = 17))
+        test3.nodes.append(CommsNodeMsg(x = -12, y = 24, id = 18))
+        test3.nodes.append(CommsNodeMsg(x = -12, y = -24, id = 19))
+        
+        test3.nodes.append(CommsNodeMsg(x = -24, y = -12, id = 20))
+        test3.nodes.append(CommsNodeMsg(x = 24, y = -12, id = 21))
+        test3.nodes.append(CommsNodeMsg(x = -24, y = 12, id = 22))
+        test3.nodes.append(CommsNodeMsg(x = 12, y = 24, id = 23))
+        
         self.sent = 0
 
-        self.targets_dict = {'sim.yaml': test1, 'sim32.yaml': test2}
+        self.targets_dict = {'sim.yaml': test1, 'sim32.yaml': test2, 'sim64.yaml': test3}
 
     def run(self):
         if self.sent == 0:

@@ -410,7 +410,7 @@ class SimManager:
         waypt_sub = rospy.Subscriber('/planner/paths', MultiRobotPlan, self.planner_callback)
         goals_reached_pub = rospy.Publisher('/sim/goals_reached', Bool, queue_size = 1)
         plan_execution_pub = rospy.Publisher('/sim/executing_plans', Bool, queue_size = 1)
-        rate = rospy.Rate(1/self.sim_env.del_t)
+        rate = rospy.Rate(1/0.25)
         counter = 0
 
         collision_detected = False
