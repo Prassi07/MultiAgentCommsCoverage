@@ -160,7 +160,7 @@ void PlannerNode::OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& 
         x_offset = (msg->info.origin.position.x)/(map_resolution);
         y_offset = (msg->info.origin.position.y)/(map_resolution);
         map = msg->data;
-
+        ROS_INFO_STREAM("MAP INFO - dimx:" << dimx << " dimy:" << dimy << " xoff:" << x_offset << " y_off:" << y_offset);
         for(int i = 0; i < dimx; i++){
             for(int j = 0; j < dimy; j++){
                 if(map[getMapIndex(i, j)] >= 80){
@@ -182,9 +182,17 @@ void PlannerNode::OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& 
         for(const auto& node : msg->nodes){
             int x = (node.x/map_resolution) - x_offset;
             int y = (node.y/map_resolution) - y_offset;
-
-            goals.emplace_back(Location(x, y));
-            goals_set.insert(Location(x, y));
+            
+            auto g = Location(x,y);
+            if(obstacles.find(g) == obstacles.end()){
+                goals.emplace_back(g);
+                goals_set.insert(g);
+            }
+            else{
+                int val = map[getMapIndex(x, y)];
+                ROS_ERROR_STREAM("ERROR Goal " << node.x << " " << node.y << " is also an obstacle: " << val << "! ");
+            }
+            
             robots++;
         }
         for(int r = 0; r < robots; ++r){

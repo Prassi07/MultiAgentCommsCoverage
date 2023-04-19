@@ -38,8 +38,8 @@ if __name__ == '__main__':
     for i in range(map_size):
         for j in range(map_size):
             if (my_map[i][j]):
-                x = (i + x_offset) * resolution
-                y = (j + y_offset) * resolution
+                x = (i + 1 + x_offset) * resolution
+                y = (j + 1 + y_offset) * resolution
                 if abs(x) > 3 or abs(y) > 3:
                     print(" - {{ id: {}, x: {},  y: {},  width: 1.0, length: 1.0, height: 20.0 }}".format(id, x, y))
                 id += 1
