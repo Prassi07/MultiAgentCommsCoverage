@@ -25,7 +25,8 @@ class Environment:
         self.del_t = del_t
         self.current_timestep = 0
         
-        self.basestation = Basestation(self.init_x, self.init_y, self.init_z, self.vehicle_num)
+        self.bst_id = 1
+        self.basestation = Basestation(self.bst_id, self.init_x, self.init_y, self.init_z, self.vehicle_num)
         
         self.obstacles = self.generate_obstacles(list_of_obstacle_dicts)
         
