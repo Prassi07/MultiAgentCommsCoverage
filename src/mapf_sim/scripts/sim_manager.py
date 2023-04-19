@@ -71,8 +71,6 @@ class SimManager:
         vehicle_num = rospy.get_param("/vehicle_num")
         del_t = rospy.get_param("/del_t")
 
-        waypt_threshold = rospy.get_param("/waypt_threshold")
-
         nodes_per_robot = rospy.get_param("/nodes_per_robot")
         return Environment( init_x,
                             init_y,

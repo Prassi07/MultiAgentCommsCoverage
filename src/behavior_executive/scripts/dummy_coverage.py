@@ -22,9 +22,19 @@ class CoveragePlanner(object):
         test1.nodes.append(CommsNodeMsg(x = -10, y = 0, id = 6))
         test1.nodes.append(CommsNodeMsg(x = 0, y = 10, id = 7))
         
+        test2 = CommsNodeArray()
+        test2.nodes.append(CommsNodeMsg(x = 10, y = 0, id = 0))
+        test2.nodes.append(CommsNodeMsg(x = 0, y = -10, id = 1))
+        test2.nodes.append(CommsNodeMsg(x = 10, y = 10, id = 2))
+        test2.nodes.append(CommsNodeMsg(x = -10, y = -10, id = 3))
+        test2.nodes.append(CommsNodeMsg(x = -10, y = 10, id = 4))
+        test2.nodes.append(CommsNodeMsg(x = 10, y = -10, id = 5))
+        test2.nodes.append(CommsNodeMsg(x = -10, y = 0, id = 6))
+        test2.nodes.append(CommsNodeMsg(x = 0, y = 10, id = 7))
+        
         self.sent = 0
 
-        self.targets_dict = {'sim.yaml': test1}
+        self.targets_dict = {'sim.yaml': test1, 'sim32.yaml': test2}
 
     def run(self):
         if self.sent == 0:
