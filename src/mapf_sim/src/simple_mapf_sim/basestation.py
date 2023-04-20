@@ -29,9 +29,7 @@ class Basestation:
         end_x = self.x + self.index_offset
         start_y = self.y - self.index_offset
         end_y = self.y + self.index_offset
-        
-        print("{} {} {} {} ".format(start_x, end_x, start_y, end_y))
-        print(self.bst_indices)
+
         direction_x = 1 if end_x > start_x else -1
         direction_y = 1 if end_y > start_y else -1
         robots = self.num_robots

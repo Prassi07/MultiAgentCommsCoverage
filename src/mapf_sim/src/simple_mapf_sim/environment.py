@@ -30,6 +30,7 @@ class Environment:
         
         self.obstacles = self.generate_obstacles(list_of_obstacle_dicts)
         
+        self.pause = False
         self.comms_nodes = []
         self.nodes_per_robot = nodes_per_robot
         
@@ -79,8 +80,10 @@ class Environment:
         '''
         Updates the environment states
         '''
-        for robot in self.vehicles:
-            robot.move_one_time_step()
+        
+        if not self.pause:
+            for robot in self.vehicles:
+                robot.move_one_time_step()
 
     def drop_comms_nodes(self, x, y):
         for node in self.comms_nodes:

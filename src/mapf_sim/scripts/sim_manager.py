@@ -225,6 +225,10 @@ class SimManager:
             if ret:
                 self.new_plan_in = True
 
+    def toggle_sim_pause(self, msg):
+        if(msg.data):
+            self.sim_env.pause = not self.sim_env.pause
+        
     def get_basestation_marker(self, time, frame):
         basest_marker = MarkerArray()
         
@@ -410,6 +414,7 @@ class SimManager:
         waypt_sub = rospy.Subscriber('/planner/paths', MultiRobotPlan, self.planner_callback)
         goals_reached_pub = rospy.Publisher('/sim/goals_reached', Bool, queue_size = 1)
         plan_execution_pub = rospy.Publisher('/sim/executing_plans', Bool, queue_size = 1)
+        sim_pause_sub = rospy.Subscriber('/sim/pause_sim', Bool, self.toggle_sim_pause)
         rate = rospy.Rate(1/0.25)
         counter = 0
 
