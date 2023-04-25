@@ -243,4 +243,4 @@ vehicle_num: $(arg num_robots)
 nodes_per_robot: 10.0
 
 # Sim Parameters
-del_t: 0.25  # timestep between sim updates
+del_t: 0.5  # timestep between sim updates

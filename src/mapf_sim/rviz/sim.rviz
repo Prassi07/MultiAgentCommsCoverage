@@ -7,7 +7,7 @@ Panels:
         - /Global Options1
         - /Percent Covered1
       Splitter Ratio: 0.6673596501350403
-    Tree Height: 921
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -90,7 +90,7 @@ Visualization Manager:
       Marker Topic: /sim/markers/comms_marker
       Name: CommsNodes
       Namespaces:
-        {}
+        comms_node: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -98,7 +98,7 @@ Visualization Manager:
       Marker Topic: /sim/markers/vehicle_trajectory
       Name: Trajectories
       Namespaces:
-        {}
+        vehicle_trajectory: true
       Queue Size: 100
       Value: true
     - Class: jsk_rviz_plugin/PieChart
@@ -244,7 +244,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 45.08627700805664
+      Distance: 40.02628707885742
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -252,17 +252,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -8.126843452453613
-        Y: 7.835483074188232
-        Z: 5.245208740234375e-06
+        X: 8.179047584533691
+        Y: -0.5126779079437256
+        Z: 1.430511474609375e-06
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.054796814918518
+      Pitch: 1.1347967386245728
       Target Frame: local_enu
-      Yaw: 2.6585798263549805
+      Yaw: 0.0004730224609375
     Saved: ~
 Window Geometry:
   Displays:

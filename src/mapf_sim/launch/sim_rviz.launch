@@ -1,0 +1,6 @@
+<launch>
+
+    <node type="rviz" name="rviz" pkg="rviz"
+        args="-d $(find simple_mapf_sim)/rviz/sim.rviz"/>
+
+</launch>

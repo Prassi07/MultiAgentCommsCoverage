@@ -141,29 +141,60 @@ void PlannerNode::Run(){
                 }
             }
             if (planner_type == 3){
-                
+                Timer timer;
+
                 ROS_INFO("Computing Dijsktra Cost Map");
                 CostMapPlanner cost_map_planner = CostMapPlanner(grid);
                 cost_map_planner.computeCostMap();
 
                 ROS_INFO("Assigning targets");
                 std::vector<Location> goals2;
+
+                for(int i = 0; i <= startStates.size(); i++){
+                    goals2.push_back(Location(0, 0));
+                }
+
+                std::vector<int> robots_assg;
+                int count = 1;
+                for(auto robot: startStates){
+                    for(auto target: goals){
+                        if((robot.x == target.x) &&(robot.y == target.y)){
+                            goals2[count - 1] = target;
+                            robots_assg.push_back(count);
+                            break;
+                        }
+                    }
+                    count++;
+                }
+
+                int ro = 1;
                 for(auto robot: startStates){
                     
+                    if(std::find(robots_assg.begin(), robots_assg.end(), ro) != robots_assg.end()){
+                        ro++;
+                        continue;
+                    }
+
                     int best_cost = 100000;
+                    Location best_target;
+
                     for(auto target: goals){
-                        
+
+                        // ROS_INFO_STREAM("Robot: " << ro <<" S: " << robot << " T:" << target);
                         int curr_cost = abs(cost_map_planner.getCost(target.x, target.y) - cost_map_planner.getCost(robot.x, robot.y));
                         if(curr_cost < best_cost){
                             if(std::find(goals2.begin(), goals2.end(), target) == goals2.end()){
-                                goals2.push_back(target);
+                                best_target = target;
                                 best_cost = curr_cost;
                             }
                         }
                     }
-                    
+
+                    // ROS_WARN_STREAM("Robot: " << ro <<" S: " << robot << " T:" << best_target);
+                    goals2[ro-1] = best_target;
+                    ro++;
                 }
-                Timer timer;
+
                 // Setup planner
                 ECBS_Environment mapf(dimx, dimy, obstacles, goals2, false); // disappearAtGoal = false
                 mapf_lib::ECBS<State, Action, int, Conflict, Constraints, ECBS_Environment> ecbs(mapf, w);
