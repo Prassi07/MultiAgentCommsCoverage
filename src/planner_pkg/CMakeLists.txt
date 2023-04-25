@@ -201,7 +201,7 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
-add_executable(planner_node src/planner_ros.cpp)
+add_executable(planner_node src/planner_ros.cpp src/dijsktra.cpp)
 # add_executable(coverage_planner src/coverage_planner/coverage_planner_node.cpp src/coverage_planner/coverage_planner.cpp)
 
 add_dependencies(planner_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

@@ -140,7 +140,77 @@ void PlannerNode::Run(){
                     ROS_ERROR("ECBS-TA Could Not Find a Solution!");
                 }
             }
+            if (planner_type == 3){
+                
+                ROS_INFO("Computing Dijsktra Cost Map");
+                CostMapPlanner cost_map_planner = CostMapPlanner(grid);
+                cost_map_planner.computeCostMap();
 
+                ROS_INFO("Assigning targets");
+                std::vector<Location> goals2;
+                for(auto robot: startStates){
+                    
+                    int best_cost = 100000;
+                    for(auto target: goals){
+                        
+                        int curr_cost = abs(cost_map_planner.getCost(target.x, target.y) - cost_map_planner.getCost(robot.x, robot.y));
+                        if(curr_cost < best_cost){
+                            if(std::find(goals2.begin(), goals2.end(), target) == goals2.end()){
+                                goals2.push_back(target);
+                                best_cost = curr_cost;
+                            }
+                        }
+                    }
+                    
+                }
+                Timer timer;
+                // Setup planner
+                ECBS_Environment mapf(dimx, dimy, obstacles, goals2, false); // disappearAtGoal = false
+                mapf_lib::ECBS<State, Action, int, Conflict, Constraints, ECBS_Environment> ecbs(mapf, w);
+                std::vector<mapf_lib::PlanResult<State, Action, int>> solution;
+
+                ROS_INFO("Starting ECBS Planner");
+                // Compute Solution
+                bool success = ecbs.search(startStates, solution);
+                timer.stop();
+
+                if(success && solution.size()){
+                    ROS_INFO("Successfully found paths to goals using ECBS");
+                    full_plan.plans.clear();
+                    int64_t cost = 0;
+                    int64_t makespan = 0;
+                    for(size_t r = 0; r < solution.size(); ++r){
+                        
+                        cost += solution[r].cost;
+                        makespan = std::max<int64_t>(makespan, solution[r].cost);
+
+                        simple_mapf_sim::Plan plan;
+
+                        for(const auto& state : solution[r].states){
+                            simple_mapf_sim::Waypoint wp;
+                            wp.x = (state.first.x + x_offset) * map_resolution;
+                            wp.y = (state.first.y + y_offset) * map_resolution;
+                            wp.t = state.second;
+                            plan.plan.push_back(wp);
+                        }
+                        full_plan.plans.push_back(plan);
+                    }
+
+                    plan_publisher.publish(full_plan);
+                    planner_pkg::PlannerStats stats;
+                    stats.makespan = makespan;
+                    stats.total_cost = cost;
+                    stats.runtime = timer.elapsedSeconds();
+                    stats.num_task_assignments = 0;
+                    stats.states_expanded_highlevel = mapf.highLevelExpanded();
+                    stats.states_expanded_lowlevel = mapf.lowLevelExpanded();
+
+                    stats_pub.publish(stats);
+                }
+                else{
+                    ROS_ERROR("ECBS Could Not Find a Solution!");
+                }
+            }
             init_targets = false;
             compute_plan = false;
             init_robots_pose = false;
@@ -169,6 +239,7 @@ void PlannerNode::OccupancyGridHandler(const nav_msgs::OccupancyGrid::ConstPtr& 
             }
         }
         initialized_map = true;
+        grid = *msg;
     }
 }
 

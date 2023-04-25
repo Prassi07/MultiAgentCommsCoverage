@@ -18,6 +18,7 @@
 #include <visualization_msgs/Marker.h>
 #include "planner_pkg/PlannerStats.h"
 #include "planner_pkg/PlannerType.h"
+#include "planner_pkg/dijkstra.h"
 
 #include "ecbs_planner.h"
 #include "planner_commons.h"
@@ -84,6 +85,7 @@ class PlannerNode{
         std::vector<int8_t, std::allocator<int8_t>> map;
         float w; //ECBS Relaxation
 
+        nav_msgs::OccupancyGrid grid;
 
         //Helper Methods
         inline int getMapIndex(int x, int y);
